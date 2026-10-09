@@ -1,0 +1,67 @@
+<!-- DSH Companion: links this IDE to a local DeepSeek Harness process. -->
+<idea-plugin>
+  <id>io.github.abadiegie.dsh-companion</id>
+  <name>DSH Companion</name>
+  <version>0.2.0</version>
+  <vendor url="https://github.com/abadiegie">abadi gilang</vendor>
+  <description><![CDATA[
+      Links JetBrains IDEs to a local DeepSeek Harness process, without any DSH-side plugin.
+      <ul>
+        <li>The <b>DSH Chat</b> tool window embeds the DeepSeek Harness web client in the IDE and signs
+        the browser-session cookie DSH expects, so the chat runs inside the IDE with no other plugin.</li>
+        <li>Each project opened here becomes its own DSH session: the plugin reuses the project's most
+        recent session over DSH's HTTP API and creates one when the project has none.</li>
+        <li>Publishes the live workspace — every open project root, the active file with its caret
+        position and selection, and all open editor tabs — through a descriptor file and a token-protected
+        loopback bridge, so DSH sees a multi-project window and can open files in the IDE.</li>
+        <li>Copies the workspace context to the clipboard, and reports its own status.</li>
+      </ul>
+    ]]></description>
+  <idea-version since-build="243" />
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.jcef</depends>
+  <extensions defaultExtensionNs="com.intellij">
+    <applicationService serviceImplementation="dsh.companion.CompanionService" />
+    <applicationService serviceImplementation="dsh.companion.DshCompanionSettings" />
+    <applicationListeners class="dsh.companion.CompanionStartup" />
+    <postStartupActivity implementation="dsh.companion.CompanionProjectActivity" />
+    <applicationConfigurable parentId="tools"
+                             instance="dsh.companion.DshCompanionConfigurable"
+                             id="dsh.companion.settings"
+                             displayName="DSH Companion" />
+    <notificationGroup id="DshCompanion" displayType="BALLOON" />
+    <toolWindow id="DSH Chat"
+                anchor="right"
+                secondary="false"
+                factoryClass="dsh.companion.DshChatToolWindowFactory" />
+  </extensions>
+  <actions>
+    <action id="dsh.companion.chat"
+            class="dsh.companion.OpenDshChatAction"
+            text="Open DSH Chat"
+            description="Show the embedded DeepSeek Harness chat panel">
+      <add-to-group group-id="ToolsMenu" anchor="first" />
+    </action>
+    <action id="dsh.companion.session"
+            class="dsh.companion.OpenDshSessionAction"
+            text="Open DSH Session for This Project"
+            description="Create or reuse the DeepSeek Harness session whose working directory is this project">
+      <add-to-group group-id="ProjectViewPopupMenu" anchor="last" />
+      <add-to-group group-id="ToolsMenu" anchor="last" />
+    </action>
+    <action id="dsh.companion.copyContext"
+            class="dsh.companion.CopyWorkspaceContextAction"
+            text="Copy DSH Workspace Context"
+            description="Copy every open project root, the active file, and the selection as markdown">
+      <add-to-group group-id="EditorPopupMenu" anchor="last" />
+      <add-to-group group-id="ProjectViewPopupMenu" anchor="last" />
+      <add-to-group group-id="ToolsMenu" anchor="last" />
+    </action>
+    <action id="dsh.companion.status"
+            class="dsh.companion.ShowCompanionStatusAction"
+            text="DSH Companion Status"
+            description="Show the bridge address, the descriptor path, and the DSH session target">
+      <add-to-group group-id="ToolsMenu" anchor="last" />
+    </action>
+  </actions>
+</idea-plugin>

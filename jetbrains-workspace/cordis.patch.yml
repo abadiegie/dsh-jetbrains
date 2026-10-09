@@ -1,0 +1,20 @@
+# Bundle patch for the JetBrains IDE workspace plugin.
+#
+# `workspaceMode: single` registers ONE DSH workspace for the IDE window instead of one per project.
+# `junctionRoot` chooses which directory that workspace is registered at:
+#   - `root-project` (default): the window's root project, one session per project.
+#   - `common-parent`: the shared parent of every project root, so one session reaches them all.
+# `pruneProjectWorkspaces` is DISABLED here on purpose: with a common-parent junction, every project
+# workspace of the window becomes "a project directory that is not the junction", so an automatic
+# delete can remove a registration the user still wants. Deleting a workspace stays a human action.
+# `registerWorkspaces: false` is the earlier spelling of the single-workspace intent; it is kept so a
+# plugin generation already loaded in a running DSH stops registering per-project workspaces.
+- insert:
+    - id: jetbrains-workspace
+      name: 'dsh-jetbrains-workspace'
+      config:
+        context: true
+        workspaceMode: single
+        registerWorkspaces: false
+        junctionRoot: common-parent
+        pruneProjectWorkspaces: false

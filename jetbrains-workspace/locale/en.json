@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "JetBrains Workspace",
+    "description": "Reads the JetBrains IDE workspace open on this machine: the root project directory, every attached project directory, and the files open in the editor."
+  }
+}

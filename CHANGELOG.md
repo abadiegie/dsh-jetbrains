@@ -1,0 +1,31 @@
+# Changelog
+
+## Unreleased
+
+Repository preparation for public release: MIT license, security model, CI, and package identity
+(`io.github.abadiegie.dsh-companion`, `dsh-jetbrains-workspace`).
+
+## jetbrains-companion 0.2.0
+
+- `DSH Chat` tool window: DSH's web client embedded through JCEF, authenticated with a locally signed
+  browser-session cookie, with Reload/Home/Back/Forward/Open-in-Browser and `This Project's Session`.
+- `Window session`: one DSH session for the whole IDE window at the shared parent of its roots,
+  falling back to each project's own directory; off gives one session per project.
+- Sessions are registered **inside** their directory's workspace, so DSH groups them immediately
+  instead of waiting for the next registry rebuild; an existing session whose grouping went missing is
+  re-attached.
+- The embedded client's console warnings and errors, and failed main-frame loads, reach `idea.log`.
+- `jetbrains_open_in_ide` opens a file in the running IDE through the companion bridge.
+
+## jetbrains-workspace 0.1.0
+
+- `jetbrains_workspace` and `jetbrains_open_in_ide` tools, the `jetbrains:workspace` runtime context,
+  and one registered DSH workspace for the IDE window.
+- Discovery from the live companion bridge, or from the IDE's own state files when the IDE is closed.
+- A module's content roots are read from the module file itself, with `$MODULE_DIR$` resolved the way
+  the platform resolves it (a `.idea` parent steps up to the project directory); a module that
+  declares no content root contributes its own directory, reported as `module-dir`.
+- The runtime context groups attached directories by the source that reported them and announces the
+  session root when it reaches beyond the project.
+- Automatic deletion of a workspace registration was removed as a default and is refused for a
+  `common-parent` junction.

@@ -1,0 +1,13 @@
+# Build output and IDE state
+jetbrains-companion/build/
+jetbrains-companion/dist/
+jetbrains-companion/probe/**/*.class
+node_modules/
+.idea/
+*.iml
+*.class
+
+# Editors and OS
+.vscode/
+.DS_Store
+Thumbs.db

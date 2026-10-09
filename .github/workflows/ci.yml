@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  bundle:
+    name: DSH bundle
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jetbrains-workspace
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Syntax check every module
+        run: |
+          for file in src/*.js dev/*.mjs; do node --check "$file"; done
+
+      - name: Synthetic check (no IDE, no DSH, no desktop)
+        run: node dev/check-synthetic.mjs
+
+      - name: Manifest is valid JSON
+        run: node -e "JSON.parse(require('node:fs').readFileSync('package.json','utf8'))"
+
+  plugin:
+    name: IDE plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Plugin descriptor is well-formed XML
+        run: python3 -c "import xml.etree.ElementTree as ET; ET.parse('jetbrains-companion/plugin.xml')"
+
+      - name: Plugin descriptor declares the platform and JCEF
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('jetbrains-companion/plugin.xml').getroot()
+          depends = {element.text for element in root.findall('depends')}
+          required = {'com.intellij.modules.platform', 'com.intellij.modules.jcef'}
+          missing = required - depends
+          assert not missing, f'plugin.xml is missing dependencies: {sorted(missing)}'
+          assert root.findtext('id'), 'plugin.xml declares no id'
+          assert root.findtext('version'), 'plugin.xml declares no version'
+          print('plugin.xml declares', root.findtext('id'), root.findtext('version'))
+          PY
+
+      - name: Every source file is present and non-trivial
+        run: |
+          count=$(find jetbrains-companion/src -name '*.java' | wc -l)
+          test "$count" -ge 10 || { echo "only $count Java sources found"; exit 1; }
+          find jetbrains-companion/src -name '*.java' -empty | grep . && exit 1 || true
+
+# The Java harnesses compile against an IntelliJ Platform installation, so they are a local
+# acceptance check rather than a CI job: see docs/PUBLISHING.md. Shipping a Gradle build (or a CI
+# step that downloads an IDE distribution) is the documented next step.
