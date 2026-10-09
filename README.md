@@ -52,6 +52,10 @@ Then restart DSH. `jetbrains_workspace` and `jetbrains_open_in_ide` become avail
   comes from, configuration, limits.
 - [`SECURITY.md`](SECURITY.md) — what these plugins read and what they can do on your machine. Read
   this before installing.
+- [`.dsh/skills/dsh-jetbrains/SKILL.md`](.dsh/skills/dsh-jetbrains/SKILL.md) — a DeepSeek Harness
+  skill for agents editing this repository: the build and check commands, and the traps worth knowing
+  first. DSH scans `<project>/.dsh/skills` (and `<project>/.agents/skills`) around the nearest
+  repository root, so a clone carries it and it is live for the agent working in that clone.
 - [`docs/PUBLISHING.md`](docs/PUBLISHING.md) — the checklist this repository was prepared against.
 - [`CHANGELOG.md`](CHANGELOG.md).
 
