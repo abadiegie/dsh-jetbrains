@@ -32,13 +32,21 @@ streaming behave exactly as in the browser. The panel:
    not its connection, and a cookie write before that link exists throws);
 5. loads the DSH URL only after that cookie is stored, so DSH never sees an unauthenticated request;
 6. asks the embedded client to show that session through the client's **own** persisted selection:
-   DSH's web client has no session deep link, it restores `dsh.sessions.current` from `localStorage`
-   on boot, so the panel seeds that record and reloads once. The script is idempotent — a second run
-   finds the record already correct and does nothing — and the panel re-applies it after each served
-   load up to three times, because the client clears that record when a restoration attempt fails or
-   when the user starts a new session; the bound keeps a client that clears on every boot from
-   reloading forever. `This Project's Session` in the toolbar re-resolves the session and grants a
-   fresh budget of pushes.
+   DSH's web client stores its current session in `localStorage` under `dsh.sessions.current`, so the
+   panel seeds that record and reloads once. The script is idempotent — a second run finds the record
+   already correct and does nothing — and the panel re-applies it after each served load up to three
+   times, because the client clears that record when a restoration attempt fails or when the user
+   starts a new session; the bound keeps a client that clears on every boot from reloading forever.
+   `This Project's Session` in the toolbar re-resolves the session and grants a fresh budget of
+   pushes.
+
+   `This Project's Session` first asks through the URL fragment a **session-link** client plugin
+   understands (`dsh-jetbrains-session-link`, a separate bundle), which needs no reload, and falls
+   back to the stored selection 1.5 s later — its script is idempotent, so a client the fragment
+   already moved is not reloaded. The fragment ask is skipped when the page has no such plugin: the
+   plugin sets a marker (`window.__dshSessionLink`) precisely so a host can tell the two cases apart.
+   The served-load path keeps using the stored selection, because a page that just booted has a client
+   without its workspace data yet and the fragment path is refused there.
 
 The window junction is computed from the live IDE snapshot, per window: a second IDE window's
 projects never widen this one's session. When the panel is created before the publisher's first poll,

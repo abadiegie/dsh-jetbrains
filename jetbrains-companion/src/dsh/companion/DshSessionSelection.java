@@ -16,6 +16,17 @@ final class DshSessionSelection {
   /** localStorage key the web client persists its current session under. */
   static final String STORAGE_KEY = "dsh.sessions.current";
 
+  /** URL fragment parameter a session-link client plugin accepts. */
+  static final String LINK_PARAMETER = "dsh-session";
+
+  /**
+   * Marker a session-link client plugin sets once it is listening for {@link #LINK_PARAMETER}.
+   *
+   * A host must not seed the stored selection while the marker is present: that path reloads the page,
+   * which restarts the client boot before it has the workspace data the fragment path needs.
+   */
+  static final String LINK_MARKER = "__dshSessionLink";
+
   private DshSessionSelection() {}
 
   /**
@@ -47,6 +58,35 @@ final class DshSessionSelection {
       + "window.localStorage.setItem(key," + Json.quote(payload(sessionId)) + ");"
       + "window.location.reload();"
       + "return 'selected';"
+      + "}catch(e){return 'failed';}})()";
+  }
+
+  /**
+   * Ask a session-link client plugin in the page to open the session, with no reload.
+   *
+   * An installed `dsh-jetbrains-session-link` sets {@link #LINK_MARKER}, reads this fragment, opens
+   * the session through the client's workspace service, and clears the parameter again; the client
+   * then persists the selection itself, which is what makes {@link #script(String)} a no-op
+   * afterwards. With no such plugin the fragment is inert — DSH's own client uses no fragment — and
+   * this script touches nothing, so the caller's stored-selection fallback still decides.
+   *
+   * The `t` member makes every attempt a distinct fragment: assigning the same hash twice fires no
+   * `hashchange`, and the plugin reacts to that event.
+   * @param sessionId - session the client should show.
+   * @param attempt - one-based attempt number, so a repeat can be re-delivered.
+   * @return JavaScript evaluating to `current`, `linked`, `unavailable`, or `failed`.
+   */
+  static String linkScript(String sessionId, int attempt) {
+    return "(function(){try{"
+      + "var key=" + Json.quote(STORAGE_KEY) + ";"
+      + "var id=" + Json.quote(sessionId) + ";"
+      + "var raw=window.localStorage.getItem(key);"
+      + "if(raw!==null){var cur=JSON.parse(raw);"
+      + "if(cur&&cur.sessionId===id&&!cur.subagentAddress){return 'current';}}"
+      + "if(window[" + Json.quote(LINK_MARKER) + "]!==true){return 'unavailable';}"
+      + "window.location.hash=" + Json.quote(LINK_PARAMETER + "=") + "+encodeURIComponent(id)"
+      + "+" + Json.quote("&t=" + attempt) + ";"
+      + "return 'linked';"
       + "}catch(e){return 'failed';}})()";
   }
 }

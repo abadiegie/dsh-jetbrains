@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.swing.JButton;
+import javax.swing.Timer;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
@@ -79,6 +80,18 @@ final class DshChatPanel extends JPanel implements Disposable {
    */
   private static final int SELECTION_PUSH_LIMIT = 3;
 
+  /**
+   * How long the toolbar action gives a session-link client plugin to answer the fragment before it
+   * falls back to the client's own recorded selection.
+   *
+   * That ask goes to a page that is already up, which is the case the fragment path is for: a page
+   * that just booted has a client without its workspace data, and the plugin refuses the open there.
+   */
+  private static final int WARM_LINK_FALLBACK_MILLIS = 1_500;
+
+  /** How many fragment asks one panel connection may make, so a client that never answers stops. */
+  private static final int SELECTION_LINK_LIMIT = 12;
+
   private final Project project;
   private final CardLayout cards = new CardLayout();
   private final JPanel body = new JPanel(cards);
@@ -89,6 +102,7 @@ final class DshChatPanel extends JPanel implements Disposable {
   private String baseUrl;
   private String sessionId;
   private int selectionPushes;
+  private int linkAttempts;
   private boolean connected;
   private volatile boolean disposed;
 
@@ -183,6 +197,7 @@ final class DshChatPanel extends JPanel implements Disposable {
     List<Path> homes = DshSessions.candidateHomes(settings);
     connected = false;
     selectionPushes = 0;
+    linkAttempts = 0;
     showMessage("Connecting to DSH…", false);
     ApplicationManager.getApplication().executeOnPooledThread(() -> {
       try {
@@ -395,15 +410,60 @@ final class DshChatPanel extends JPanel implements Disposable {
    * It runs after every served page load but hands the client one session id at most once, so the
    * single reload that changes the selection happens exactly once and the panel never fights the
    * user's own navigation afterwards.
+   *
+   * This is the cold path: a page that just booted has a client without its workspace data yet, so
+   * the fragment path cannot answer here (the session-link plugin refuses with
+   * `sessions.retain: unknown session`). The warm path is {@link #showProjectSession()}, where a human
+   * asks a page that is already up.
    * @param cef - the loaded browser.
    */
   private void selectProjectSession(org.cef.browser.CefBrowser cef) {
-    String target = sessionId;
+    final String target = sessionId;
     if (target == null || selectionPushes >= SELECTION_PUSH_LIMIT) return;
     selectionPushes++;
-    cef.executeJavaScript(DshSessionSelection.script(target), cef.getURL(), 0);
+    runOnPage(DshSessionSelection.script(target));
     LOG.info("dsh-companion: chat asked the embedded client for session " + target
-      + " (push " + selectionPushes + "/" + SELECTION_PUSH_LIMIT + ")");
+      + " (stored selection, push " + selectionPushes + "/" + SELECTION_PUSH_LIMIT + ")");
+  }
+
+  /**
+   * Run one script on the current page, if there is one.
+   * @param script - JavaScript to run in the loaded page.
+   */
+  private void runOnPage(String script) {
+    org.cef.browser.CefBrowser page = cef();
+    if (page == null) return;
+    page.executeJavaScript(script, page.getURL(), 0);
+  }
+
+  /**
+   * Ask once through the URL fragment, the reload-free path a session-link client plugin answers.
+   * @param browser - the loaded page, or {@code null} when the panel has none.
+   * @param target - session the client should show.
+   * @param what - short description for the log line.
+   */
+  private void askThroughFragment(org.cef.browser.CefBrowser browser, String target, String what) {
+    if (browser == null || linkAttempts >= SELECTION_LINK_LIMIT) return;
+    linkAttempts++;
+    browser.executeJavaScript(DshSessionSelection.linkScript(target, linkAttempts), browser.getURL(), 0);
+    LOG.info("dsh-companion: chat asked the embedded client for session " + target
+      + " (deep link, " + what + ")");
+  }
+
+  /**
+   * Run one delayed step on the EDT, still only while this panel shows the same project session.
+   * @param what - log line describing the step before it runs.
+   * @param delayMillis - delay from now.
+   * @param step - the work to run.
+   */
+  private void retry(String what, int delayMillis, Runnable step) {
+    Timer timer = new Timer(delayMillis, event -> {
+      if (disposed || cef() == null) return;
+      LOG.info("dsh-companion: " + what);
+      step.run();
+    });
+    timer.setRepeats(false);
+    timer.start();
   }
 
   /** Toolbar action: re-resolve this project's session and show it, whatever the client displays now. */
@@ -422,6 +482,7 @@ final class DshChatPanel extends JPanel implements Disposable {
           ApplicationManager.getApplication().invokeLater(() -> {
             sessionId = target;
             selectionPushes = 0;
+            linkAttempts = 0;
             if (cef() != null) selectProjectSession(cef());
           });
         } catch (IOException failure) {
@@ -430,10 +491,15 @@ final class DshChatPanel extends JPanel implements Disposable {
       });
       return;
     }
-    // Idempotent: the client reloads only when it is showing something else. A human asking is worth
-    // a fresh budget of pushes.
+    // Warm page, human asking: the fragment path can answer here without a reload, and the stored
+    // selection follows only if it did not (its script is idempotent, so a client already showing the
+    // session is never reloaded).
     selectionPushes = 0;
-    selectProjectSession(cef());
+    linkAttempts = 0;
+    final String wanted = sessionId;
+    askThroughFragment(cef(), wanted, "toolbar action");
+    retry("chat checked the stored selection for session " + wanted, WARM_LINK_FALLBACK_MILLIS,
+      () -> runOnPage(DshSessionSelection.script(wanted)));
   }
 
   /**
