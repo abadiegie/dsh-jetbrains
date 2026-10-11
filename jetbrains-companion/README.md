@@ -48,6 +48,15 @@ streaming behave exactly as in the browser. The panel:
    The served-load path keeps using the stored selection, because a page that just booted has a client
    without its workspace data yet and the fragment path is refused there.
 
+Session resolution skips **delegated children**: a subagent shares its parent's working directory and
+is usually the newer row, so resolving purely by directory would hand the panel a child view — the
+client records that as a subagent address rather than a session, and the panel would keep asking for a
+session it already shows.
+
+Launch the IDE with `DSH_COMPANION_PROBE` set to have the panel report the embedded page's link state
+(whether a session-link plugin is listening, which branch its ask takes, what the client has selected)
+into the IDE log. It reads only, and it is how the JCEF behaviour above was established.
+
 The window junction is computed from the live IDE snapshot, per window: a second IDE window's
 projects never widen this one's session. When the panel is created before the publisher's first poll,
 one synchronous collection decides the junction instead of quietly falling back to the project.
@@ -143,6 +152,11 @@ DSH_HOME=<harness home> /usr/share/idea/jbr/bin/java -cp build/stage:build/check
 #     to the narrower project directory. No IDE, browser, or DSH.
 /usr/share/idea/jbr/bin/javac -cp build/stage -d build/check dev/ScopeCheck.java
 /usr/share/idea/jbr/bin/java -cp build/stage:build/check dsh.companion.ScopeCheck
+
+# 4d. Which session a project resolves to: the newest session of its directory, never a delegated
+#     child. No IDE, browser, or DSH.
+/usr/share/idea/jbr/bin/javac -cp build/stage -d build/check dev/SessionCheck.java
+/usr/share/idea/jbr/bin/java -cp build/stage:build/check dsh.companion.SessionCheck
 
 # 5. The whole plugin inside a real IDE, headless — proves the descriptor loads, the JCEF
 #    dependency resolves, and no extension is rejected. Run it with isolated platform paths:

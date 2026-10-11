@@ -20,7 +20,7 @@ cd jetbrains-workspace && node dev/check-synthetic.mjs   # synthetic inputs; nee
 cd jetbrains-workspace && node dev/check.mjs             # drives the tools against this machine's IDE
 cd jetbrains-companion && ./build.sh                      # compiles and installs the jar into the local IDE
 /usr/share/idea/jbr/bin/javac -cp build/stage -d build/check dev/*.java
-for c in Check ChatCheck UrlCheck dsh.companion.SelectionCheck dsh.companion.ScopeCheck; do
+for c in Check ChatCheck UrlCheck dsh.companion.SelectionCheck dsh.companion.SessionCheck dsh.companion.ScopeCheck; do
   /usr/share/idea/jbr/bin/java -cp build/stage:build/check "$c"
 done
 DSH_HOME=~/.dsh /usr/share/idea/jbr/bin/java -cp build/stage:build/check DshCheck
@@ -66,7 +66,14 @@ Live diagnosis: the panel forwards its client console to `idea.log` as `dsh-comp
    `setsid nohup env DISPLAY=:0 XAUTHORITY=~/.Xauthority /usr/share/idea/bin/idea &`, take screenshots
    with `scrot`, and activate windows with `xdotool windowactivate <id>`; without a display the panel
    can only report its message card.
-10. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
+10. **A subagent shares its parent's directory.** `session/list` marks a delegated child with
+    `origin: subagent` (or a `parentSessionId`), and it is usually the newer row, so resolving "the
+    session for this directory" without that filter hands the panel a child view — the client records
+    it as a subagent address, and the panel then keeps re-asking for a session it already shows.
+11. **The panel forwards warnings and errors only.** A plugin's `console.info` (a success line, say)
+    never reaches `idea.log`, so "no plugin message" proves nothing; log diagnostics with
+    `console.warn`, and use `DSH_COMPANION_PROBE` for the page's own view of its link state.
+12. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
     repository uses `io.github.abadiegie.dsh-companion`.
 
 ## Where the rest is written

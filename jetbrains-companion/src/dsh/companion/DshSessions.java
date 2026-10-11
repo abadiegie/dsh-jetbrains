@@ -55,6 +55,25 @@ final class DshSessions {
   }
 
   /**
+   * Pick the session a project should show: the most recently active session whose working directory
+   * is that project's, ignoring delegated children.
+   *
+   * A subagent child shares its parent's directory and is usually newer, so without this filter the
+   * panel resolves the project to a child view. The client then records the selection as a subagent
+   * address rather than the session, and the panel keeps re-asking for a session it already shows.
+   * @param rows - every visible session.
+   * @param canonical - the project's canonical directory.
+   * @return the newest matching session, or {@code null} when the project has none.
+   */
+  static DshClient.SessionRow newestProjectSession(List<DshClient.SessionRow> rows, String canonical) {
+    return rows.stream()
+      .filter(row -> row.cwd() != null && canonical.equals(canonical(row.cwd())))
+      .filter(row -> !row.isSubagent())
+      .max(Comparator.comparingLong(DshClient.SessionRow::updatedAt))
+      .orElse(null);
+  }
+
+  /**
    * Ensure a DSH session exists for one directory over an already-authenticated client.
    *
    * The directory is the window junction when the companion runs in window scope, so the same call
@@ -79,10 +98,7 @@ final class DshSessions {
         /* the default title stands; naming is cosmetic and must never fail the session */
       }
     }
-    DshClient.SessionRow existing = client.listSessions().stream()
-      .filter(row -> row.cwd() != null && canonical.equals(canonical(row.cwd())))
-      .max(Comparator.comparingLong(DshClient.SessionRow::updatedAt))
-      .orElse(null);
+    DshClient.SessionRow existing = newestProjectSession(client.listSessions(), canonical);
     if (existing != null) {
       if (!workspace.accounts(existing.sessionId())) {
         try {

@@ -89,6 +89,15 @@ final class DshChatPanel extends JPanel implements Disposable {
    */
   private static final int WARM_LINK_FALLBACK_MILLIS = 1_500;
 
+  /** How long the diagnostic probe waits, so it reads a page that has settled. */
+  private static final int PROBE_DELAY_MILLIS = 3_000;
+
+  /**
+   * Whether to report the embedded page's link state into the IDE log. Off unless the IDE is launched
+   * with {@code DSH_COMPANION_PROBE} set; the probe reads and never writes.
+   */
+  private static final boolean PROBE = System.getenv("DSH_COMPANION_PROBE") != null;
+
   /** How many fragment asks one panel connection may make, so a client that never answers stops. */
   private static final int SELECTION_LINK_LIMIT = 12;
 
@@ -424,6 +433,7 @@ final class DshChatPanel extends JPanel implements Disposable {
     runOnPage(DshSessionSelection.script(target));
     LOG.info("dsh-companion: chat asked the embedded client for session " + target
       + " (stored selection, push " + selectionPushes + "/" + SELECTION_PUSH_LIMIT + ")");
+    if (PROBE) retry("chat probed the page", PROBE_DELAY_MILLIS, () -> runOnPage(DshSessionSelection.probeScript(sessionId)));
   }
 
   /**
@@ -498,6 +508,8 @@ final class DshChatPanel extends JPanel implements Disposable {
     linkAttempts = 0;
     final String wanted = sessionId;
     askThroughFragment(cef(), wanted, "toolbar action");
+    if (PROBE) retry("chat probed the page after the toolbar ask", PROBE_DELAY_MILLIS,
+      () -> runOnPage(DshSessionSelection.probeScript(sessionId)));
     retry("chat checked the stored selection for session " + wanted, WARM_LINK_FALLBACK_MILLIS,
       () -> runOnPage(DshSessionSelection.script(wanted)));
   }

@@ -89,4 +89,33 @@ final class DshSessionSelection {
       + "return 'linked';"
       + "}catch(e){return 'failed';}})()";
   }
+
+  /**
+   * Report what this page knows about the link path, into the page console the panel forwards to the
+   * IDE log. Enable it by launching the IDE with {@code DSH_COMPANION_PROBE} set.
+   *
+   * It answers what a host cannot otherwise see: whether the link plugin is active in this embedded
+   * browser (the marker), whether its client module is in this page's boot graph, whether the served
+   * HTML referenced it, what the client has selected, and which branch the ask itself would take. The
+   * panel forwards warnings and errors only, so the report is a warning.
+   * @param sessionId - session the ask would name.
+   * @return JavaScript warning with one JSON snapshot.
+   */
+  static String probeScript(String sessionId) {
+    return "(function(){try{"
+      + "var boot=(globalThis.__DSH_BOOT__&&globalThis.__DSH_BOOT__.entries)||[];"
+      + "var linkEntries=boot.filter(function(entry){"
+      + "return entry&&String(entry.id||'').indexOf('session-link')>=0;});"
+      + "var scripts=0;var all=document.getElementsByTagName('script');"
+      + "for(var i=0;i<all.length;i++){if(String(all[i].src).indexOf('session-link')>=0){scripts++;}}"
+      + "var out={marker:window[" + Json.quote(LINK_MARKER) + "]===true,"
+      + "href:String(window.location.href),"
+      + "stored:String(window.localStorage.getItem(" + Json.quote(STORAGE_KEY) + ")),"
+      + "linkEntries:linkEntries,scriptTags:scripts,"
+      + "bootKeys:Object.keys(globalThis.__DSH_BOOT__||{})};"
+      + "out.ask=" + linkScript(sessionId, 99) + ";"
+      + "console.warn('dsh-companion probe ' + JSON.stringify(out));"
+      + "return JSON.stringify(out);"
+      + "}catch(e){console.warn('dsh-companion probe failed: ' + (e&&e.message));return 'failed';}})()";
+  }
 }

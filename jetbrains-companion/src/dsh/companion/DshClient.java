@@ -26,7 +26,27 @@ import javax.crypto.spec.SecretKeySpec;
  */
 public final class DshClient {
   /** One DSH session row, reduced to the fields session reuse needs. */
-  public record SessionRow(String sessionId, String cwd, long updatedAt, boolean blank) {}
+  /**
+   * One row of `session/list`.
+   *
+   * @param sessionId - durable session identity.
+   * @param cwd - working directory the session was created for, when it has one.
+   * @param updatedAt - epoch milliseconds of the last activity, which is how "newest" is decided.
+   * @param blank - whether the session has no conversation yet.
+   * @param origin - `subagent` for a delegated child, absent for a session a human opened.
+   * @param parentSessionId - the parent of a delegated child, when DSH reports one.
+   */
+  public record SessionRow(String sessionId, String cwd, long updatedAt, boolean blank,
+                           String origin, String parentSessionId) {
+    /**
+     * @return whether this row is a delegated child rather than a session a human opened. A child
+     *     shares its parent's working directory and is often newer, so a caller choosing "the
+     *     session for this directory" must skip these.
+     */
+    public boolean isSubagent() {
+      return "subagent".equals(origin) || parentSessionId != null;
+    }
+  }
 
   /**
    * One signed browser-session cookie, in both forms a consumer needs: the HTTP header form
@@ -152,7 +172,9 @@ public final class DshClient {
         sessionId,
         JsonParser.string(item, "cwd"),
         updatedAt instanceof Long number ? number : 0L,
-        blank instanceof Boolean flag && flag));
+        blank instanceof Boolean flag && flag,
+        JsonParser.string(item, "origin"),
+        JsonParser.string(item, "parentSessionId")));
     }
     return rows;
   }

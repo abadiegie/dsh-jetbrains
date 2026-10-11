@@ -40,7 +40,7 @@ What is already in place, and what only you can decide or do.
 cd jetbrains-workspace && node dev/check.mjs          # schema, discovery, roles, context, registry
 cd ../jetbrains-companion && ./build.sh               # compiles against your installed IDE
 /usr/share/idea/jbr/bin/javac -cp build/stage -d build/check dev/*.java
-for c in Check ChatCheck UrlCheck dsh.companion.SelectionCheck dsh.companion.ScopeCheck; do
+for c in Check ChatCheck UrlCheck dsh.companion.SelectionCheck dsh.companion.SessionCheck dsh.companion.ScopeCheck; do
   /usr/share/idea/jbr/bin/java -cp build/stage:build/check "$c"
 done
 DSH_HOME=<home> /usr/share/idea/jbr/bin/java -cp build/stage:build/check DshCheck
