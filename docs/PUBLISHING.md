@@ -27,6 +27,41 @@ What is already in place, and what only you can decide or do.
 4. **IDE compatibility.** `plugin.xml` declares `since-build="243"` and a dependency on
    `com.intellij.modules.jcef`. Widen or narrow it only after testing that build.
 
+## Repository metadata (About)
+
+The repository's own description does not come from a file, so it is set once on GitHub. Copy this
+into **About** (the gear beside the description on the repository page):
+
+> Unofficial DeepSeek Harness ⇄ JetBrains integration: DSH chat inside your IDE, and your IDE workspace — project, attached modules, active file and caret — in front of the model.
+
+Topics, in the order that matters most:
+
+```
+deepseek-harness  dsh  jetbrains  intellij  intellij-plugin  ai-agent  jcef  ide-integration
+```
+
+With the GitHub CLI authenticated (`gh auth login`):
+
+```sh
+gh repo edit abadiegie/dsh-jetbrains \
+  --description "Unofficial DeepSeek Harness ⇄ JetBrains integration: DSH chat inside your IDE, and your IDE workspace — project, attached modules, active file and caret — in front of the model." \
+  --add-topic deepseek-harness --add-topic dsh --add-topic jetbrains --add-topic intellij \
+  --add-topic intellij-plugin --add-topic ai-agent --add-topic jcef --add-topic ide-integration
+```
+
+Or with a token that can administer the repository (`repo` scope for a private one, `public_repo` for a
+public one):
+
+```sh
+curl -sS -X PATCH -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" \
+  https://api.github.com/repos/abadiegie/dsh-jetbrains \
+  -d '{"homepage":"","topics":["deepseek-harness","dsh","jetbrains","intellij","intellij-plugin","ai-agent","jcef","ide-integration"],"description":"Unofficial DeepSeek Harness ⇄ JetBrains integration: DSH chat inside your IDE, and your IDE workspace — project, attached modules, active file and caret — in front of the model."}'
+```
+
+The packages already carry their own `description`, `repository`, `homepage`, and `bugs`; `plugin.xml`
+carries the plugin's `<description>` for the IDE's plugin list. This section covers only the GitHub
+About field.
+
 ## Optional, but expected by the ecosystem
 
 - **Gradle build.** `build.sh` compiles against an installed IDE, which is fast and dependency-free but
