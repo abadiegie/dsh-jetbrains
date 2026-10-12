@@ -70,6 +70,9 @@ export function publishChanges(ctx, options = {}) {
   const summaryDelays = options.summaryDelays ?? SUMMARY_DELAYS
   const sessions = new Map()
   const warned = new Set()
+  // Events whose summary the recorder had not stored yet, keyed by session and sequence. The next session
+  // event is the retry clock: it needs no timer helper from the composition, and a turn emits several.
+  const unresolved = new Map()
   let published
   // The last event this listener saw and what became of it, published inside the document so a reader can
   // tell "no turn yet" from "a turn this listener could not publish" without the Host's terminal.
@@ -140,14 +143,19 @@ export function publishChanges(ctx, options = {}) {
       // answers leaves the attempt count in the document and warns once per session.
       const delay = summaryDelays[attempt]
       if (delay !== undefined) {
-        // The Host's own timer, not `ctx.setTimeout`: the plugin context has no such mixed-in helper in the
-        // running composition — the call threw, the listener was dropped with it, and the document's
-        // `lastEvent` stayed at `attempts: 1, outcome: pending` forever. `ctx.setTimeout` is still used when
-        // it exists, so a composition that provides it keeps its lifetime handling.
-        const schedule = typeof ctx.setTimeout === 'function'
-          ? (callback, millis) => ctx.setTimeout(callback, millis)
-          : (callback, millis) => setTimeout(callback, millis)
-        schedule(() => record(session, event, attempt + 1), delay)
+        unresolved.set(`${id}:${event.seq}`, { session, event, attempt: attempt + 1 })
+        // A best-effort clock only. The composition's own `ctx.setTimeout` is not `(callback, delay)` — with
+        // it preferred, `lastEvent` sat at `attempts: 1, outcome: pending` while the summary was there — so
+        // the Host's timer is used and a failure here costs nothing: the next event drains the map anyway.
+        try {
+          const timer = setTimeout(() => {
+            if (!unresolved.delete(`${id}:${event.seq}`)) return
+            record(session, event, attempt + 1)
+          }, delay)
+          if (typeof timer?.unref === 'function') timer.unref()
+        } catch {
+          // No timer in this scope; the next session event is the clock.
+        }
       } else if (!warned.has(id)) {
         warned.add(id)
         lastEvent = { ...lastEvent, outcome: 'unavailable' }
@@ -191,6 +199,12 @@ export function publishChanges(ctx, options = {}) {
   // `@deepseek-ai/dsh-compaction` and the SDK server): an extra listener option is not a no-op, and a
   // wrong one silences the feed instead of erroring.
   return ctx.on('session/event', (session, event) => {
+    // Look again at what earlier events could not be read; a turn's own next event usually makes the
+    // recorder's summary available, which is what no timer here could be trusted to do.
+    for (const held of [...unresolved.values()]) {
+      unresolved.delete(`${sessionIdOf(held.session)}:${held.event?.seq}`)
+      record(held.session, held.event, held.attempt)
+    }
     if (event?.type !== CHANGES_EVENT) return
     record(session, event, 0)
   })

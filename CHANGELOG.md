@@ -30,7 +30,12 @@ Repository preparation for public release: MIT license, security model, CI, and 
   appending the event, which on this repository takes longer than the single 200 ms retry allowed — so turns
   were dropped while the same sequence answered minutes later. The delays now run 100 ms → 5 s over about
   twenty seconds, and they are injectable (`summaryDelays`, test-only) so a check can exhaust them at once.
-- The retry itself uses the Host's own timer: the running composition mixes no `ctx.setTimeout` into a
+- The retry no longer depends on any timer the composition offers: every session event first looks again at
+  the events whose summary was not stored yet, and the Host's own timer is only a best-effort clock. Preferring
+  `ctx.setTimeout` kept the broken path — the composition mixes one in, its convention is not
+  `(callback, delay)`, and `lastEvent` stayed at `attempts: 1, outcome: pending` with the summary already
+  there. A turn emits several events, so the next one is the clock this needs.
+- The retry also once used the Host's own timer: the running composition mixes no `ctx.setTimeout` into a
   plugin context, so the scheduled look threw and never ran — the document's `lastEvent` sat at
   `attempts: 1, outcome: pending` while the summary was already there. `ctx.setTimeout` is still preferred
   when a composition provides it.
