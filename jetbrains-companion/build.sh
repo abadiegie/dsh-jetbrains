@@ -57,10 +57,11 @@ VERSION=$(sed -n 's/.*<version>\(.*\)<\/version>.*/\1/p' "$HERE/plugin.xml" | he
 DIST="$HERE/dist/dsh-companion-$VERSION.zip"
 ZIP_ROOT="$HERE/dist/zip"
 rm -rf "$ZIP_ROOT"
-mkdir -p "$ZIP_ROOT/lib"
-cp "$JAR" "$ZIP_ROOT/lib/"
-# `--no-manifest` matters: without it the jar tool writes META-INF/MANIFEST.MF at the archive root, and a
-# Marketplace upload is rejected for a root holding more than lib/ ("must not contain multiple files").
-(cd "$ZIP_ROOT" && jar --create --no-manifest --file "$DIST" lib)
+mkdir -p "$ZIP_ROOT/dsh-companion/lib"
+cp "$JAR" "$ZIP_ROOT/dsh-companion/lib/"
+# Two validator rules, learned one rejection at a time: the archive holds exactly one plugin root directory,
+# and that root holds exactly lib/ with the jar in it. `--no-manifest` keeps the jar tool from adding
+# META-INF/MANIFEST.MF beside it, which is what "must not contain multiple files" objected to.
+(cd "$ZIP_ROOT" && jar --create --no-manifest --file "$DIST" dsh-companion)
 rm -rf "$ZIP_ROOT"
 echo "build: distribution $DIST ($(du -h "$DIST" | cut -f1))"
