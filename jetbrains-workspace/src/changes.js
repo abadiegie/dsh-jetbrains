@@ -13,6 +13,8 @@
 
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
+
+import { notifyChanged, readLiveBridge } from './bridge.js'
 import { dirname, join } from 'node:path'
 
 /** Document version, so a reader can reject a shape it does not know. */
@@ -68,6 +70,8 @@ export function publishChanges(ctx, options = {}) {
   const path = options.changesPath ?? defaultChangesPath(options.home ?? homedir())
   // Injectable so a check can exhaust the schedule in milliseconds instead of twenty seconds.
   const summaryDelays = options.summaryDelays ?? SUMMARY_DELAYS
+  const bridgeOptions = options.bridgeOptions ?? {}
+  const autoOpenDiffs = options.autoOpenDiffs !== false
   const sessions = new Map()
   const warned = new Set()
   // Events whose summary the recorder had not stored yet, keyed by session and sequence. The next session
@@ -188,7 +192,34 @@ export function publishChanges(ctx, options = {}) {
         : [],
       at: Date.now(),
     })
+    // The entry is in; say so and stop looking for this event.
+    unresolved.delete(`${id}:${event.seq}`)
+    lastEvent = { ...lastEvent, outcome: 'published' }
     publish()
+    // Tell the IDE, so the diff can open by itself with its keep-or-revert answer. Best effort: a click that
+    // still works, or no IDE at all, must not turn a published turn into an error.
+    if (autoOpenDiffs) {
+      const bridge = readLiveBridge(bridgeOptions)
+      if (bridge !== undefined) {
+        void notifyChanged(bridge, {
+          sessionId: id,
+          cwd: typeof summary.cwd === 'string' ? summary.cwd : (session?.header?.cwd ?? null),
+          seq: event.seq,
+          turn: typeof event?.data?.turn === 'number' ? event.data.turn : null,
+          files: (Array.isArray(summary.files) ? summary.files : []).map(file => ({
+            path: file?.path,
+            display: file?.display,
+            added: file?.added,
+            deleted: file?.deleted,
+          })),
+        }).catch(failure => {
+          if (!warned.has('notice')) {
+            warned.add('notice')
+            ctx.logger?.warn?.(`jetbrains-workspace: could not tell the IDE about ${id} at ${event.seq}: ${failure?.message ?? failure}`)
+          }
+        })
+      }
+    }
   }
 
   // A previous Host's review must not survive this one: the recorder keeps nothing across restarts, so

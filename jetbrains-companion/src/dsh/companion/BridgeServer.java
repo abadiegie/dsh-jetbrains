@@ -31,6 +31,14 @@ public final class BridgeServer implements AutoCloseable {
      * @return a failure message, or {@code null} when the file was opened.
      */
     String open(String path, int line, int column);
+
+    /**
+     * Show the diff of a turn DSH just published.
+     *
+     * @param body - the JSON notice: session, sequence, turn, workspace root, and the changed files.
+     * @return a failure message, or null when the IDE took it.
+     */
+    String changed(String body);
   }
 
   /** Request bodies larger than this are refused rather than read. */
@@ -57,6 +65,7 @@ public final class BridgeServer implements AutoCloseable {
     this.server.createContext("/health", this::handleHealth);
     this.server.createContext("/workspace", exchange -> handleWorkspace(exchange, ide));
     this.server.createContext("/open", exchange -> handleOpen(exchange, ide));
+    this.server.createContext("/changed", exchange -> handleChanged(exchange, ide));
     this.server.start();
   }
 
@@ -94,6 +103,28 @@ public final class BridgeServer implements AutoCloseable {
       return;
     }
     respond(exchange, 200, ide.snapshotJson());
+  }
+
+  private void handleChanged(HttpExchange exchange, Ide ide) throws IOException {
+    if (!authorized(exchange)) {
+      forbidden(exchange);
+      return;
+    }
+    if (!"POST".equals(exchange.getRequestMethod())) {
+      respond(exchange, 405, Json.object().field("ok", false).field("error", "method not allowed").build());
+      return;
+    }
+    String body = readBody(exchange);
+    if (body == null) {
+      respond(exchange, 413, Json.object().field("ok", false).field("error", "body too large").build());
+      return;
+    }
+    String failure = ide.changed(body);
+    if (failure != null) {
+      respond(exchange, 400, Json.object().field("ok", false).field("error", failure).build());
+      return;
+    }
+    respond(exchange, 200, Json.object().field("ok", true).build());
   }
 
   private void handleOpen(HttpExchange exchange, Ide ide) throws IOException {

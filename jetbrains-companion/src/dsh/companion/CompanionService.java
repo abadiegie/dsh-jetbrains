@@ -23,6 +23,17 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import com.intellij.diff.DiffContentFactory;
+import com.intellij.diff.DiffManager;
+import com.intellij.diff.requests.SimpleDiffRequest;
+import com.intellij.notification.Notification;
+import com.intellij.notification.NotificationAction;
+import com.intellij.notification.Notifications;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+import org.jetbrains.annotations.NotNull;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.List;
 
 /**
  * Application service that publishes this IDE's workspace to DSH: it owns the loopback
@@ -67,6 +78,11 @@ public final class CompanionService implements Disposable {
           @Override
           public String open(String requestPath, int line, int column) {
             return CompanionService.this.openInIde(requestPath, line, column);
+          }
+
+          @Override
+          public String changed(String body) {
+            return CompanionService.this.changedInIde(body);
           }
         }, token);
       } catch (IOException failure) {
@@ -231,6 +247,111 @@ public final class CompanionService implements Disposable {
    * @param column - one-based column, or 0.
    * @return a failure message, or {@code null} on success.
    */
+  /**
+   * Show the diff of a turn DSH just published, and offer to keep or revert it.
+   *
+   * The diff comes from DSH, which holds the recorder, so the lookup happens off the bridge thread; the tab
+   * and the notification belong on the dispatch thread.
+   *
+   * @param body - the JSON notice.
+   * @return a failure message, or null when the IDE took it.
+   */
+  private String changedInIde(String body) {
+    Object parsed = JsonParser.parse(body);
+    String sessionId = JsonParser.string(parsed, "sessionId");
+    Object rawSeq = JsonParser.member(parsed, "seq");
+    if (sessionId == null || !(rawSeq instanceof Long seq)) return "the notice names no session or sequence";
+    List<Object> files = JsonParser.array(parsed, "files");
+    if (files.isEmpty()) return "the turn changed no file";
+    Object first = files.get(0);
+    String path = JsonParser.string(first, "path");
+    if (path == null || path.isEmpty()) return "the turn named no file path";
+    String display = JsonParser.string(first, "display");
+    String cwd = JsonParser.string(parsed, "cwd");
+    Object rawTurn = JsonParser.member(parsed, "turn");
+    int turn = rawTurn instanceof Long number ? number.intValue() : 0;
+    ApplicationManager.getApplication().executeOnPooledThread(() -> {
+      ChangesDiff diff;
+      try {
+        DshCompanionSettings.State settings = DshCompanionSettings.getInstance().state();
+        DshClient client = DshClient.locate(DshSessions.candidateUrls(settings), DshSessions.candidateHomes(settings));
+        diff = client.changesDiff(sessionId, seq, 0);
+      } catch (IOException failure) {
+        LOG.info("dsh-companion: cannot read the diff DSH announced: " + failure.getMessage());
+        return;
+      }
+      ApplicationManager.getApplication().invokeLater(() -> showChangedDiff(diff, display, cwd, turn));
+    });
+    return null;
+  }
+
+  /**
+   * Open one announced change as a native diff, with the two answers a reader has.
+   *
+   * @param diff - the payload DSH served.
+   * @param display - the name to show.
+   * @param cwd - the workspace root the payload's path is relative to.
+   * @param turn - the turn number.
+   */
+  private void showChangedDiff(ChangesDiff diff, String display, String cwd, int turn) {
+    Project project = null;
+    for (Project candidate : ProjectManager.getInstance().getOpenProjects()) {
+      if (!candidate.isDefault()) {
+        project = candidate;
+        break;
+      }
+    }
+    if (project == null) return;
+    DiffContentFactory factory = DiffContentFactory.getInstance();
+    DiffManager.getInstance().showDiff(project, new SimpleDiffRequest(
+      diff.title() + "  ·  DSH turn " + turn,
+      factory.create(diff.left()),
+      factory.create(diff.right()),
+      "before this turn",
+      "after this turn"));
+    String name = display == null || display.isEmpty() ? diff.path() : display;
+    Notification notification = new Notification("DshCompanion", "DSH changed " + name,
+      "Turn " + turn + " · " + diff.hunkCount() + (diff.hunkCount() == 1 ? " hunk" : " hunks")
+        + " · keep it or take it back",
+      NotificationType.INFORMATION);
+    notification.addAction(new NotificationAction("Keep") {
+      @Override
+      public void actionPerformed(@NotNull AnActionEvent event, @NotNull Notification shown) {
+        shown.expire();
+      }
+    });
+    notification.addAction(new NotificationAction("Revert") {
+      @Override
+      public void actionPerformed(@NotNull AnActionEvent event, @NotNull Notification shown) {
+        shown.expire();
+        revertChanged(diff, cwd);
+      }
+    });
+    Notifications.Bus.notify(notification, project);
+  }
+
+  /**
+   * Take one announced change back, the same way the changes panel does.
+   *
+   * @param diff - the payload DSH served.
+   * @param cwd - the workspace root the payload's path is relative to.
+   */
+  private void revertChanged(ChangesDiff diff, String cwd) {
+    Path file = Path.of(cwd == null ? "" : cwd, diff.path() == null ? "" : diff.path());
+    try {
+      if (diff.isCreation()) {
+        Files.deleteIfExists(file);
+        return;
+      }
+      Files.writeString(file, ChangesRevert.reverted(Files.readString(file, StandardCharsets.UTF_8), diff),
+        StandardCharsets.UTF_8);
+    } catch (IOException | ChangesRevert.Refused failure) {
+      LOG.warn("dsh-companion: cannot revert " + file + ": " + failure.getMessage());
+      Notifications.Bus.notify(new Notification("DshCompanion", "DSH could not revert " + diff.path(),
+        String.valueOf(failure.getMessage()), NotificationType.WARNING));
+    }
+  }
+
   private String openInIde(String requestPath, int line, int column) {
     String normalized = requestPath.replace('\\', '/');
     String[] failure = new String[1];

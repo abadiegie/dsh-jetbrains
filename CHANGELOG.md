@@ -23,6 +23,15 @@ Repository preparation for public release: MIT license, security model, CI, and 
   document from another publisher, a missing one, the location override) and the payload splitter (context,
   added, and removed lines, the hunk count, and a payload with no display name).
 
+## jetbrains-companion 0.2.3
+
+- The diff opens by itself: when a turn publishes its changes, `jetbrains-workspace` posts a notice to the
+  companion's bridge (`POST /changed`) and the IDE opens the turn's diff in a native tab and shows a
+  notification with **Keep** and **Revert**. `autoOpenDiffs` (default on) turns it off, and a missing bridge
+  or a refused notice only logs — a published turn never fails because an IDE could not be told.
+- The publisher's diagnostic now flips to `published` (and clears its retry bookkeeping) once an entry is
+  stored; before this it stayed at `pending` even for an entry that had been written.
+
 ## jetbrains-companion 0.2.2
 
 - `Revert file…` in the `DSH Changes` tool window: a turn's change can be taken back by reverse-applying the

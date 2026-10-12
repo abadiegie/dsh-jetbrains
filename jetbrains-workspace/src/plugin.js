@@ -210,6 +210,8 @@ function settingsFrom(config) {
     changes: settings.changes !== false,
     changesPath: optionalString(settings.changesPath, 'changesPath'),
     autoOpenDeliverables: settings.autoOpenDeliverables === true,
+    // Default on: a turn's diff opening by itself is the point of the companion's changes half.
+    autoOpenDiffs: settings.autoOpenDiffs !== false,
     // Default on: a click in the DSH UI opening the artifact in the IDE is the point of this plugin, and
     // it costs a user nothing when no IDE is running.
     openInIde: settings.openInIde !== false,
@@ -333,6 +335,8 @@ export function apply(ctx, config) {
       ...settings.changesPath !== undefined ? { changesPath: settings.changesPath } : {},
       // Test-only: a check cannot spend the publisher's real twenty-second schedule waiting for a summary.
       ...Array.isArray(settings.summaryDelays) ? { summaryDelays: settings.summaryDelays } : {},
+      bridgeOptions,
+      autoOpenDiffs: settings.autoOpenDiffs,
     }))
   }
   // `ctx.inject` inside owns the lifecycle: the wrap waits for the session controller and is undone with

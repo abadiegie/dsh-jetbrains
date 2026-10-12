@@ -210,6 +210,32 @@ export async function openInIde(bridge, request, timeoutMs = 5_000) {
   return body
 }
 
+/**
+ * Tell one IDE that a turn published changes, so it can show the diff on its own.
+ *
+ * @param bridge - the live bridge descriptor.
+ * @param notice - what the IDE needs: session, sequence, turn, workspace root, and the changed files.
+ * @param timeoutMs - how long the IDE may take.
+ * @returns the IDE's answer.
+ * @throws when the IDE refuses the notice.
+ */
+export async function notifyChanged(bridge, notice, timeoutMs = 5_000) {
+  const response = await fetch(`http://127.0.0.1:${bridge.port}/changed`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${bridge.token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(notice),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  const body = await response.json().catch(() => undefined)
+  if (!response.ok) {
+    throw new Error(typeof body?.error === 'string' ? body.error : `the IDE bridge answered ${response.status}`)
+  }
+  return body
+}
+
 /** Whether one recorded process id is still running. */
 function isAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false

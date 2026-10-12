@@ -575,6 +575,34 @@ if (declined.status !== 409) throw new Error(`without a bridge the route must de
 unrouted.disposers.forEach(dispose => dispose())
 console.log('the open route resolves a session path, opens it in the IDE, and declines when it cannot')
 
+// 11. A published turn tells the IDE, so the diff can open by itself with its keep-or-revert answer.
+const noticePath = join(fixture, 'notice-changes.json')
+const notifier = mount({
+  probe: false, home: fixture, configRoots: [fixture], bridgePath: clickDescriptor,
+  changesPath: noticePath, summaryDelays: [10, 10],
+}, undefined, {
+  workspaceChanges: {
+    summary: () => ({
+      turn: 9, cwd: project, total: 1, added: 2, deleted: 1,
+      files: [{ path: 'docs/a.md', display: 'docs/a.md', added: 2, deleted: 1 }],
+    }),
+  },
+})
+notifier.listeners.get('session/event')({ header: { id: 'session-notice', cwd: project } },
+  { type: 'workspace/changes', seq: 91, data: { turn: 9 } })
+await new Promise(resolve => setTimeout(resolve, 80))
+const notice = clicks.filter(entry => entry.url === '/changed').pop()
+if (notice === undefined) throw new Error('a published turn must tell the IDE about it')
+if (notice.body.sessionId !== 'session-notice' || notice.body.seq !== 91 || notice.body.files?.[0]?.path !== 'docs/a.md') {
+  throw new Error(`the notice must name the turn and its files: ${JSON.stringify(notice.body)}`)
+}
+if (notice.authorization !== 'Bearer click-token') throw new Error('the notice must carry the bridge token')
+if (JSON.parse(readFileSync(noticePath, 'utf8')).lastEvent?.outcome !== 'published') {
+  throw new Error('a published turn must say so in the document')
+}
+notifier.disposers.forEach(dispose => dispose())
+console.log('a published turn tells the IDE, and the document says it was published')
+
 await new Promise(resolve => clickServer.close(resolve))
 
 console.log('\nsynthetic check: discovery, roles, context, stability, and registration all check out')
