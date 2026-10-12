@@ -272,7 +272,9 @@ if (first[0].files.length !== 2 || first[0].files[1].path !== '/tmp/b.md') {
 }
 
 // Another session joins, newest first; a later turn of the same session replaces its entry.
-summaries.set('session-b:7', { turn: 1, total: 1, added: 1, deleted: 0, files: [{ path: 'x', display: 'x' }] })
+summaries.set('session-b:7', {
+  turn: 1, cwd: '/from-summary', total: 1, added: 1, deleted: 0, files: [{ path: 'x', display: 'x' }],
+})
 announce({ header: { id: 'session-b', cwd: '/work/b' } }, 7, 1)
 summaries.set('session-a:43', { turn: 4, total: 1, added: 3, deleted: 1, files: [{ path: 'src/a.js', display: 'src/a.js' }] })
 announce(sessionA, 43, 4)
@@ -282,6 +284,7 @@ if (both[0].sessionId !== 'session-a' || both[0].seq !== 43) {
   throw new Error(`the newest turn must replace its session entry: ${JSON.stringify(both.map(entry => entry.sessionId + ':' + entry.seq))}`)
 }
 if (both[1].sessionId !== 'session-b') throw new Error('the other session must stay published')
+if (both[1].cwd !== '/from-summary') throw new Error('the summary\'s own cwd must win over the session header')
 
 // Events that are not change announcements are ignored, and no temporary file is left behind.
 changesPlugin.listeners.get('session/event')(sessionA, { type: 'turn/end', seq: 44, data: { turn: 4 } })

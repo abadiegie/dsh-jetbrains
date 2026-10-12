@@ -99,14 +99,19 @@ export function publishChanges(ctx, options = {}) {
     if (id === undefined) return
     const summary = ctx.get('workspaceChanges')?.summary(id, event.seq)
     if (summary === undefined || summary === null) {
-      // The recorder announces the turn from its own commit path, so one tick can separate the event
-      // from the entry it names; a recorder that never answers is simply not published.
+      // The recorder appends the event first and stores the summary immediately after, so a listener
+      // that runs before that statement sees nothing. One retry covers the gap; a recorder that never
+      // answers is simply not published.
       if (attempt === 0) ctx.setTimeout(() => record(session, event, 1), RETRY_MILLIS)
       return
     }
     sessions.set(id, {
       sessionId: id,
-      cwd: typeof session?.header?.cwd === 'string' ? session.header.cwd : null,
+      // The recorder's own `cwd` is the root the listed paths are relative to, which is what a reader
+      // resolves them against; the session header is the fallback.
+      cwd: typeof summary.cwd === 'string'
+        ? summary.cwd
+        : (typeof session?.header?.cwd === 'string' ? session.header.cwd : null),
       seq: event.seq,
       turn: typeof summary.turn === 'number'
         ? summary.turn
