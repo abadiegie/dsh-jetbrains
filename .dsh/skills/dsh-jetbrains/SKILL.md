@@ -123,7 +123,12 @@ Live diagnosis: the panel forwards its client console to `idea.log` as `dsh-comp
     a git diff, not instant. A single short retry drops turns silently (this publisher did, while the same
     sequence answered minutes later). Retry on a schedule, and record what the listener saw (`lastEvent` with
     its outcome) inside the document: the Host's terminal is not a place a user can look.
-19. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
+19. **A published turn is also a notice.** `jetbrains-workspace` posts to the companion bridge's
+    `/changed` after a turn is stored (`autoOpenDiffs`, default on), and the IDE opens the diff with a
+    Keep/Revert notification; the panel's `Revert file…` uses the same `ChangesRevert`, which locates hunks by
+    content and refuses rather than half-reverting. Reachability is best-effort by design: no bridge means no
+    notice, never a failed turn.
+20. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
     repository uses `io.github.abadiegie.dsh-companion`.
 
 ## Where the rest is written

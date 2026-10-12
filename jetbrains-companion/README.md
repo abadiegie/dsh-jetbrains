@@ -15,6 +15,22 @@ through `GET /api/changes.diff` with the same signed browser cookie the chat pan
 the payload's hunks are split into the two texts the platform's diff compares. A file the turn created gets
 an empty left side and says so in the tab title; a deleted file the same on the right.
 
+## The diff opens by itself
+
+When a turn publishes its changes, `jetbrains-workspace` posts a notice to the companion bridge
+(`POST /changed`, carrying the session, the event sequence, the turn, the workspace root, and the changed
+files). The companion fetches that turn's diff from DSH and opens it in a native tab, then shows a
+notification with two answers: **Keep** and **Revert**. Revert is the same code the panel's `Revert file…`
+button uses — a file edited since the turn is refused rather than half-reverted, and a file the turn created
+is deleted.
+
+`autoOpenDiffs` in the bundle (default on) turns the notice off, and a bridge that is missing or refuses it
+only logs: a published turn never fails because an IDE could not be told.
+
+Verified live against the running deployment: a turn that changed one file published its entry with
+`lastEvent.outcome: published`, and `POST /changed` for that entry answered `200 {"ok":true}` with no failure
+line in `idea.log`.
+
 It needs the bundle mounted and one turn that changed a file; with nothing published yet the panel says so
 instead of showing an empty list. Like every IDE-plugin change, a new build needs an **IDE restart**.
 
