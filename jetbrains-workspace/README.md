@@ -44,6 +44,22 @@ changed JavaScript: the Loader resolves a package specifier once, so edits to `s
 the next DSH restart. To load an edit without restarting, install the package under a changed
 `name` in `package.json` (a new specifier resolves to a new module URL) and remove the old bundle.
 
+## What the review document says
+
+`workspace/changes` carries only the turn number; the files come from `workspaceChanges.summary`, which the
+recorder stores just after it appends that event — computing a git diff, so not instantly. The publisher
+therefore looks again on a schedule (100 ms, 200, 400, 800, 1.6 s, 3.2 s, then 5 s up to about twenty
+seconds) before it gives up on a turn.
+
+The document also carries `lastEvent`: the session, sequence, turn, how many looks it took, and an outcome of
+`pending`, `published`, or `unavailable`. That is the difference between "no turn has changed files yet" and
+"a turn this publisher could not read", visible in the file itself rather than in the Host's terminal.
+
+Verified live: for a turn whose summary `GET /api/changes.summary?sessionId=…&seq=…` reported as
+`jetbrains-workspace/README.md` with `+5`, `POST /api/changes.open?sessionId=…&seq=…&index=0` answered `204`
+in 0.075 s and the IDE's active file became that file — the same call a click on a changed file makes — while
+`GET /api/changes.diff` served the turn's hunks for DSH's own review tab.
+
 ## Clicking a file opens it in the IDE
 
 DSH's own click behaviour for a file is its Sidebar viewer: `ui-chat` opens a file through

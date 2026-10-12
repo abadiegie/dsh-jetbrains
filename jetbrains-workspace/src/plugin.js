@@ -185,9 +185,12 @@ const OPEN_TOOL_DESCRIPTION =
 function settingsFrom(config) {
   const settings = config ?? {}
   const home = optionalString(settings.home, 'home') ?? homedir()
+  // Test-only knob for the review publisher's retry schedule; validated like every other array setting.
+  const summaryDelays = optionalNumberArray(settings.summaryDelays, 'summaryDelays')
   const configRoots = optionalStringArray(settings.configRoots, 'configRoots')
   return {
     home,
+    ...summaryDelays === undefined ? {} : { summaryDelays },
     configRoots: configRoots !== undefined && configRoots.length > 0 ? configRoots : defaultConfigRoots(home),
     serverPorts: optionalNumberArray(settings.serverPorts, 'serverPorts') ?? undefined,
     probeTimeoutMs: optionalPositiveNumber(settings.probeTimeoutMs, 'probeTimeoutMs') ?? 700,
@@ -328,6 +331,8 @@ export function apply(ctx, config) {
     ctx.effect(() => publishChanges(ctx, {
       home: settings.home,
       ...settings.changesPath !== undefined ? { changesPath: settings.changesPath } : {},
+      // Test-only: a check cannot spend the publisher's real twenty-second schedule waiting for a summary.
+      ...Array.isArray(settings.summaryDelays) ? { summaryDelays: settings.summaryDelays } : {},
     }))
   }
   // `ctx.inject` inside owns the lifecycle: the wrap waits for the session controller and is undone with

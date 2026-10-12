@@ -277,7 +277,8 @@ const changesDirectory = mkdtempSync(join(tmpdir(), 'dsh-changes-'))
 const changesPath = join(changesDirectory, 'jetbrains-changes.json')
 const summaries = new Map()
 const changesPlugin = mount(
-  { probe: false, liveBridge: false, home: fixture, configRoots: [fixture], changesPath },
+  // Tiny delays: the real schedule spends about twenty seconds waiting for a summary, which a check cannot.
+  { probe: false, liveBridge: false, home: fixture, configRoots: [fixture], changesPath, summaryDelays: [10, 10] },
   undefined,
   { workspaceChanges: { summary: (session, seq) => summaries.get(`${session}:${seq}`) } })
 
@@ -310,6 +311,12 @@ await new Promise(resolve => setTimeout(resolve, 320))
 if (published().sessions.length !== 0) throw new Error('an unknown summary must not be published')
 if (!changesPlugin.warnings.some(warning => warning.includes('has no summary'))) {
   throw new Error('a summary that never arrives must be reported, not silently dropped')
+}
+// The document says what the listener saw, so a reader can tell "no turn yet" from a turn it could not
+// publish — the Host's terminal is not a place a user can look.
+const pending = published().lastEvent
+if (pending?.seq !== 42 || pending.outcome !== 'unavailable' || !(pending.attempts >= 2)) {
+  throw new Error(`the document must record the event it could not publish: ${JSON.stringify(pending)}`)
 }
 
 summaries.set('session-a:42', {

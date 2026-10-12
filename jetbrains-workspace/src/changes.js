@@ -27,8 +27,13 @@ const SESSION_LIMIT = 8
 /** The session event a recorder announces one turn's changed files with. */
 const CHANGES_EVENT = 'workspace/changes'
 
-/** One retry for a summary the recorder had not stored when its own event arrived. */
-const RETRY_MILLIS = 200
+/**
+ * Delays between looks for a summary the recorder had not stored when its own event arrived. The recorder
+ * appends the event first and computes the summary — a git diff over the turn — immediately after, which on
+ * a busy repository takes far longer than one 200 ms retry allowed: with a single retry the publisher
+ * silently dropped turns, while `workspaceChanges.summary` answered for the same sequence minutes later.
+ */
+const SUMMARY_DELAYS = [100, 200, 400, 800, 1_600, 3_200, 5_000, 5_000, 5_000]
 
 /**
  * The document path a deployment publishes to by default.
@@ -61,22 +66,28 @@ function sessionIdOf(session) {
  */
 export function publishChanges(ctx, options = {}) {
   const path = options.changesPath ?? defaultChangesPath(options.home ?? homedir())
+  // Injectable so a check can exhaust the schedule in milliseconds instead of twenty seconds.
+  const summaryDelays = options.summaryDelays ?? SUMMARY_DELAYS
   const sessions = new Map()
   const warned = new Set()
   let published
+  // The last event this listener saw and what became of it, published inside the document so a reader can
+  // tell "no turn yet" from "a turn this listener could not publish" without the Host's terminal.
+  let lastEvent
 
   /** Write the document when its content changed. */
   const publish = () => {
     const entries = [...sessions.values()]
       .sort((left, right) => right.at - left.at)
       .slice(0, SESSION_LIMIT)
-    const signature = entries.map(entry => `${entry.sessionId}:${entry.seq}`).join(',')
+    const signature = `${entries.map(entry => `${entry.sessionId}:${entry.seq}`).join(',')}|${JSON.stringify(lastEvent ?? null)}`
     if (signature === published) return
     published = signature
     const document = {
       version: VERSION,
       source: SOURCE,
       updatedAt: new Date().toISOString(),
+      ...lastEvent === undefined ? {} : { lastEvent },
       sessions: entries,
     }
     try {
@@ -93,9 +104,19 @@ export function publishChanges(ctx, options = {}) {
    * Record the summary one announced event names.
    * @param session - the session the event belongs to.
    * @param event - the `workspace/changes` event.
-   * @param attempt - 0 for the first look, 1 for the retry after {@link RETRY_MILLIS}.
+   * @param attempt - 0 for the first look, then one per delay in {@link SUMMARY_DELAYS}.
    */
   const record = (session, event, attempt) => {
+    const eventSessionId = sessionIdOf(session)
+    lastEvent = {
+      sessionId: typeof eventSessionId === 'string' ? eventSessionId : null,
+      seq: typeof event?.seq === 'number' ? event.seq : null,
+      turn: typeof event?.data?.turn === 'number' ? event.data.turn : null,
+      at: new Date().toISOString(),
+      attempts: attempt + 1,
+      outcome: 'pending',
+    }
+    publish()
     const id = sessionIdOf(session)
     if (id === undefined) {
       if (!warned.has('session')) {
@@ -114,14 +135,17 @@ export function publishChanges(ctx, options = {}) {
     }
     const summary = recorder.summary(id, event.seq)
     if (summary === undefined || summary === null) {
-      // The recorder appends the event first and stores the summary immediately after, so a listener
-      // that runs before that statement sees nothing. One retry covers the gap; a recorder that never
-      // answers is simply not published.
-      if (attempt === 0) {
-        ctx.setTimeout(() => record(session, event, 1), RETRY_MILLIS)
+      // The recorder appends the event first and stores the summary immediately after, so a listener that
+      // runs before that statement sees nothing. Look again on the schedule above; a recorder that never
+      // answers leaves the attempt count in the document and warns once per session.
+      const delay = summaryDelays[attempt]
+      if (delay !== undefined) {
+        ctx.setTimeout(() => record(session, event, attempt + 1), delay)
       } else if (!warned.has(id)) {
         warned.add(id)
-        ctx.logger?.warn?.(`jetbrains-workspace: the change recorder has no summary for ${id} at ${event.seq}; that turn is not published`)
+        lastEvent = { ...lastEvent, outcome: 'unavailable' }
+        publish()
+        ctx.logger?.warn?.(`jetbrains-workspace: the change recorder has no summary for ${id} at ${event.seq} after ${attempt + 1} looks; that turn is not published`)
       }
       return
     }

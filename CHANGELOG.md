@@ -13,6 +13,17 @@ Repository preparation for public release: MIT license, security model, CI, and 
   opener) and a temporary review document, so it passes and no longer writes the real
   `<DSH home>/jetbrains-changes.json`.
 
+## jetbrains-workspace 0.1.5
+
+- The review publisher looks for a turn's summary on a schedule instead of once: `workspace/changes` carries
+  only `{turn}` (`workspaceChanges.summary` holds the files), and the recorder stores that summary after
+  appending the event, which on this repository takes longer than the single 200 ms retry allowed — so turns
+  were dropped while the same sequence answered minutes later. The delays now run 100 ms → 5 s over about
+  twenty seconds, and they are injectable (`summaryDelays`, test-only) so a check can exhaust them at once.
+- The document also records what the listener saw: `lastEvent` carries the session, sequence, turn, attempt
+  count, and an outcome of `pending`, `published`, or `unavailable`. A reader can now tell "no turn yet" from
+  "a turn the publisher could not read" without the Host's terminal, which is where that warning used to go.
+
 ## jetbrains-workspace 0.1.4
 
 - Clicking a file in the DSH UI opens it in the IDE instead of the Sidebar viewer. DSH opens files through

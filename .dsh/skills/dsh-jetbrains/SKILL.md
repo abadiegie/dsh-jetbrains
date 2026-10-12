@@ -118,7 +118,12 @@ Live diagnosis: the panel forwards its client console to `idea.log` as `dsh-comp
     registered on the wrong table never answers, so the request hangs and a client awaiting it opens nothing
     — bound every wait on both sides (this module 2.5 s client-side, the bridge call 5 s) and fall back
     rather than leaving a click with no effect.
-18. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
+18. **An announced turn is not a readable turn.** `workspace/changes` carries only `{turn}`; the files come
+    from `workspaceChanges.summary(sessionId, seq)`, which the recorder stores *after* appending the event —
+    a git diff, not instant. A single short retry drops turns silently (this publisher did, while the same
+    sequence answered minutes later). Retry on a schedule, and record what the listener saw (`lastEvent` with
+    its outcome) inside the document: the Host's terminal is not a place a user can look.
+19. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
     repository uses `io.github.abadiegie.dsh-companion`.
 
 ## Where the rest is written
