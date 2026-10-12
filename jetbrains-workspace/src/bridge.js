@@ -13,7 +13,7 @@
  * @module bridge
  */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { commonParentOf, canonicalPath } from './discovery.js'
@@ -40,8 +40,27 @@ export function defaultBridgePath(home = homedir()) {
  * @returns the descriptor with its parsed workspace, or `undefined` when no live IDE publishes one.
  */
 export function readLiveBridge(options = {}) {
-  if (options.liveBridge === false) return undefined
+  return readLiveBridges(options)[0]
+}
+
+/**
+ * The directory a per-window descriptor set lives in, beside the single descriptor older builds published.
+ *
+ * @param options - discovery options; `bridgePath` moves the whole set.
+ * @returns the directory path.
+ */
+export function descriptorDirectory(options = {}) {
   const path = options.bridgePath ?? defaultBridgePath(options.home ?? homedir())
+  return join(dirname(path), 'jetbrains-companion')
+}
+
+/**
+ * Read one descriptor, if it is this companion's, live, and usable.
+ *
+ * @param path - the descriptor file.
+ * @returns the descriptor, or undefined.
+ */
+function liveBridgeAt(path) {
   let parsed
   try {
     parsed = JSON.parse(readFileSync(path, 'utf8'))
@@ -54,6 +73,87 @@ export function readLiveBridge(options = {}) {
   if (!isAlive(parsed.pid)) return undefined
   if (parsed.workspace === null || typeof parsed.workspace !== 'object') return undefined
   return { path, port: parsed.port, token: parsed.token, pid: parsed.pid, workspace: parsed.workspace }
+}
+
+/**
+ * Every live companion, not just the one: two IDE windows publish one descriptor each into the directory
+ * beside the single descriptor older builds wrote, and a Host that reads only the first would open a
+ * window's diff in another window.
+ *
+ * @param options - discovery options: `liveBridge` (false reads nothing), `bridgePath`, `home`.
+ * @returns the live descriptors, the single descriptor first so a single-window setup keeps its order.
+ */
+export function readLiveBridges(options = {}) {
+  if (options.liveBridge === false) return []
+  const single = options.bridgePath ?? defaultBridgePath(options.home ?? homedir())
+  const found = []
+  const seen = new Set()
+  const add = (candidate) => {
+    if (candidate === undefined) return
+    const key = `${candidate.port}:${candidate.token}`
+    if (seen.has(key)) return
+    seen.add(key)
+    found.push(candidate)
+  }
+  add(liveBridgeAt(single))
+  let names = []
+  try {
+    names = readdirSync(descriptorDirectory(options))
+  } catch {
+    /* no per-window set yet: the single descriptor is all there is */
+  }
+  for (const name of names.sort()) {
+    if (!name.endsWith('.json') || name.startsWith('.')) continue
+    add(liveBridgeAt(join(descriptorDirectory(options), name)))
+  }
+  return found
+}
+
+/**
+ * The companion whose window owns one directory, for a Host that has several.
+ *
+ * @param bridges - the live descriptors.
+ * @param root - the workspace root, or any path inside it.
+ * @returns the matching descriptor, or undefined when none claims that root.
+ */
+export function bridgeForWorkspace(bridges, root) {
+  if (typeof root !== 'string' || root === '') return undefined
+  const wanted = root.replace(/\\/g, '/').replace(/\/+$/, '')
+  for (const bridge of bridges) {
+    const workspace = bridge.workspace ?? {}
+    const roots = []
+    for (const project of Array.isArray(workspace.projects) ? workspace.projects : []) {
+      if (typeof project?.path === 'string') roots.push(project.path)
+      for (const entry of Array.isArray(project?.roots) ? project.roots : []) {
+        if (typeof entry === 'string') roots.push(entry)
+      }
+    }
+    for (const entry of Array.isArray(workspace.roots) ? workspace.roots : []) {
+      if (typeof entry === 'string') roots.push(entry)
+    }
+    for (const candidate of roots) {
+      const claimed = candidate.replace(/\\/g, '/').replace(/\/+$/, '')
+      if (claimed === wanted || wanted.startsWith(`${claimed}/`) || claimed.startsWith(`${wanted}/`)) return bridge
+    }
+  }
+  return undefined
+}
+
+/**
+ * The companion to use for one workspace: the window that owns it, else the first live one.
+ *
+ * @param options - discovery options.
+ * @param root - the workspace root, or any path inside it.
+ * @returns the descriptor to use, or undefined when no IDE is live.
+ */
+export function readLiveBridgeFor(options, root) {
+  const bridges = readLiveBridges(options)
+  return bridgeForWorkspace(bridges, root) ?? bridges[0]
+}
+
+/** Whether one directory name belongs in the per-window descriptor set. */
+export function descriptorFileName(key) {
+  return `${key}.json`
 }
 
 /**

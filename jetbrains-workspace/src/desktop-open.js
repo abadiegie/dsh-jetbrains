@@ -17,7 +17,7 @@
  * @module jetbrains-workspace/desktop-open
  */
 
-import { openInIde, readLiveBridge } from './bridge.js'
+import { openInIde, readLiveBridgeFor } from './bridge.js'
 
 /**
  * Replace the Host's default path opener once a session controller exists, for as long as this plugin is
@@ -36,7 +36,7 @@ export function openDesktopPathsInIde(ctx, options = {}) {
     }
     const original = controller.openPath
     controller.openPath = async (path, signal) => {
-      const bridge = readLiveBridge(bridgeOptions)
+      const bridge = readLiveBridgeFor(bridgeOptions, path)
       if (bridge === undefined) return original.call(controller, path, signal)
       try {
         await openInIde(bridge, { path })

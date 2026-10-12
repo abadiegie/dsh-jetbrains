@@ -62,6 +62,12 @@ Live diagnosis: the panel forwards its client console to `idea.log` as `dsh-comp
 7. **The companion descriptor is shared** at `~/.dsh/jetbrains-companion.json`. A headless IDE run
    (`idea.sh inspect`) rewrites it and deletes it on exit, which breaks a running IDE's bridge; pass
    `-Ddsh.companion.descriptor=/tmp/…` for headless testing, and let the running IDE republish.
+7b. **One descriptor per window, when a window publishes one.** The companion descriptor is written per IDE
+    run today, so two windows share one bridge and the *companion* decides which window shows a diff (it
+    matches the notice's root against each open project's base path). The Host side already reads a whole set:
+    `readLiveBridges` takes the single descriptor plus every `jetbrains-companion/*.json` beside it, and
+    `bridgeForWorkspace` chooses by root — so a build that publishes one descriptor per window needs no Host
+    change, only a measurement of whether two windows really start two bridges.
 8. **Code loads at process start.** The IDE plugin reloads only on an IDE restart; the DSH bundle's
    `src/*.js` resolves once per host process, while its patch/config layer reloads live — so a
    config-only change (for example `junctionRoot`) takes effect immediately and a code change does not.

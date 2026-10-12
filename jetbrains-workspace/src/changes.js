@@ -14,7 +14,7 @@
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 
-import { notifyChanged, readLiveBridge } from './bridge.js'
+import { notifyChanged, readLiveBridge, readLiveBridgeFor } from './bridge.js'
 import { dirname, join } from 'node:path'
 
 /** Document version, so a reader can reject a shape it does not know. */
@@ -199,7 +199,10 @@ export function publishChanges(ctx, options = {}) {
     // Tell the IDE, so the diff can open by itself with its keep-or-revert answer. Best effort: a click that
     // still works, or no IDE at all, must not turn a published turn into an error.
     if (autoOpenDiffs) {
-      const bridge = readLiveBridge(bridgeOptions)
+      // The window that owns this turn's workspace, not merely the first live IDE: two windows publish one
+      // descriptor each, and a notice must land where the change happened.
+      const bridge = readLiveBridgeFor(bridgeOptions,
+        typeof summary.cwd === 'string' ? summary.cwd : session?.header?.cwd)
       if (bridge !== undefined) {
         void notifyChanged(bridge, {
           sessionId: id,

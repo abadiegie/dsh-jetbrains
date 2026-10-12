@@ -23,6 +23,14 @@ Repository preparation for public release: MIT license, security model, CI, and 
   document from another publisher, a missing one, the location override) and the payload splitter (context,
   added, and removed lines, the hunk count, and a payload with no display name).
 
+## jetbrains-workspace 0.1.6
+
+- The bundle reads a **set** of companion descriptors, not one: `readLiveBridges` collects the single
+  descriptor older builds publish plus every `*.json` in the `jetbrains-companion/` directory beside it, and
+  `bridgeForWorkspace` picks the window whose published workspace owns a root. Notices for a published turn
+  and desktop opens now go to that window instead of the first live one, which matters as soon as two IDE
+  windows are open. A single descriptor still comes first and still works.
+
 ## jetbrains-companion 0.2.6
 
 - The chat panel's own toolbar gains a **Changes** toggle, beside Reload, Home and the session actions: it
