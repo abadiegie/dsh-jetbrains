@@ -58,6 +58,12 @@ point of the plugin, and it costs nothing when no IDE is running. When no IDE pu
 original desktop opener runs untouched, and when the IDE refuses a path the plugin falls back to that
 opener rather than letting a click do nothing.
 
+Verified live on a Host with a running IDE: a `POST /api/present.open?sessionId=…&seq=…&index=0` — the
+same call the DSH UI makes when a deliverable is clicked — moved the IDE's active file from the editor it
+was showing to the presented artifact, with no desktop application involved. Before the wrap waited for its
+service, the identical call answered `204` and the IDE's state never moved, which is how the missing wrap
+was found.
+
 Two limits are worth knowing:
 
 - The shipped handlers refuse with `409 Host desktop unavailable.` *before* the opener is reached when the
