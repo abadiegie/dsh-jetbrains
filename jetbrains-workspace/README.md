@@ -72,6 +72,11 @@ never answers: the request hangs, and a client waiting on it opens nothing. The 
 bounds its wait (2.5 s) and lets the Sidebar take the click when the Host does not answer in time, so the
 worst case is the old behaviour rather than a click that does nothing.
 
+Verified live on a Host with a running IDE: a click on a generated artifact opened it in the IDE, the
+artifact appeared in the companion's published editor list, and the route answered `204` in single-digit
+milliseconds. The same route hung indefinitely before it registered on the fetch-shaped table, which is why
+the client half bounds its wait as well.
+
 Turning it off is the same one key (`openSidebarFilesInIde: false`), and the route is then simply not
 registered, which the client reads as "not ours". Like every other setting here, it takes effect when the
 row is mounted again, so restart the Host after changing it. The client half reaches an already-open page
