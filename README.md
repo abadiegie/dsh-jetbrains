@@ -45,10 +45,13 @@ The IDE side leans the same way. One companion serves the whole IDE: the chat pa
 project, the window junction can be told to register the shared parent so a multi-module checkout is one
 workspace (`junctionRoot: common-parent`), and `jetbrains_workspace` answers for every attached directory.
 
-What that costs is worth knowing: the companion descriptor is **one file per user**, so two IDE windows do
-not both publish a bridge — the second overwrites the first, and a Host that has one descriptor can reach one
-window's bridge. Attaching several projects to one window keeps everything working; two windows need a
-descriptor per window and a Host that routes by workspace, which is not built yet.
+What that costs, measured rather than assumed: the companion descriptor is *one file per user*, and the
+companion starts **one bridge per IDE run**. Opening a second IDE window produced no second `bridge on` line,
+and the one descriptor already named both windows' projects. So a Host reaches every window through one
+bridge, DSH's workspace tool sees all of them, and the companion decides which window shows a diff or opens a
+file by matching the path against each project's base path. The Host also accepts a *set* of descriptors (the
+single one plus any `jetbrains-companion/*.json` beside it) and chooses by workspace, so a future build that
+publishes one descriptor per window needs no Host change.
 
 ## What each half gives you
 

@@ -23,6 +23,14 @@ Repository preparation for public release: MIT license, security model, CI, and 
   document from another publisher, a missing one, the location override) and the payload splitter (context,
   added, and removed lines, the hunk count, and a payload with no display name).
 
+## Unreleased (multi-window measurement)
+
+- Measured with two IDE windows open: the companion starts one bridge per IDE run (the `bridge on` count did
+  not change) and its single descriptor already names both windows' projects. Two windows therefore need no
+  per-window descriptor for DSH to reach them; what decides which window shows a diff is the companion's
+  match of the notice's root against each project's base path. The Host's descriptor-set reader stays as
+  forward compatibility.
+
 ## jetbrains-workspace 0.1.6
 
 - The bundle reads a **set** of companion descriptors, not one: `readLiveBridges` collects the single
