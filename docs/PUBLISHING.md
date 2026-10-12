@@ -72,14 +72,14 @@ About field.
 - **Marketplace.** Requires a real `<version>` bump per release, `<change-notes>`, a plugin icon, and a
   signed artifact. The plugin id above is what a Marketplace listing would keep forever.
 
-## Release the two artifacts
+## Release the artifacts
 
-They version independently and neither installs the other.
+The IDE plugin and the DSH packages version independently, and none of them installs another.
 
 | Artifact | Built by | Where it goes | Notes |
 |---|---|---|---|
 | `jetbrains-companion` | `jetbrains-companion/build.sh` → `dist/dsh-companion.jar` | GitHub release asset; JetBrains Marketplace once the listing requirements are met | The Marketplace needs a real `<version>` bump per release, `<change-notes>`, a plugin icon, and a signed artifact. Users can also build it from source with no Gradle. |
-| `jetbrains-workspace` | nothing to build — plain ESM | the repository directory itself (install with `plugin_manager install_bundle`); npm later if you want | It is not a JetBrains artifact, so the Marketplace cannot carry it. Tag both halves in one release and say which version of each works together. |
+| `jetbrains-workspace` | nothing to build — plain ESM with a `dsh.client` half | the repository directory itself (install with `plugin_manager install_bundle`); npm later if you want | It is not a JetBrains artifact, so the Marketplace cannot carry it. Both halves reach a running Host through a module generation: the Host half needs a restart after an update, and an already-open page needs a reload for the client half. Tag the artifacts in one release and say which version of each works together. |
 | `jetbrains-session-link` | nothing to build — plain ESM with a `dsh.client` half | the repository directory, installed the same way | Optional: without it the panel selects the session through the client's stored record and one reload. Its `dsh.client` half is served from the installed package, so replacing the package needs a DSH restart to load a fresh module generation. |
 
 The contract between them is DSH's own HTTP API plus the companion descriptor
@@ -94,7 +94,9 @@ listening. Its files are plain ESM, so a release needs no build step — only th
 ## Verification before tagging
 
 ```sh
-cd jetbrains-workspace && node dev/check.mjs          # schema, discovery, roles, context, registry
+cd jetbrains-workspace && node dev/check-synthetic.mjs  # schema, discovery, roles, context, registry, review, opens
+node dev/check-client.mjs                             # the client half against a fake page
+cd ../jetbrains-session-link && node dev/check.mjs    # the session-link client half
 cd ../jetbrains-companion && ./build.sh               # compiles against your installed IDE
 /usr/share/idea/jbr/bin/javac -cp build/stage -d build/check dev/*.java
 for c in Check ChatCheck UrlCheck dsh.companion.SelectionCheck dsh.companion.SessionCheck dsh.companion.ScopeCheck; do

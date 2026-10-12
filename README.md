@@ -3,13 +3,14 @@
 Small packages that connect a local [DeepSeek Harness](../../) (DSH) to a JetBrains IDE, so the IDE and
 the agent share one workspace instead of two islands.
 
-Two of them are independent halves of one workflow, and each works on its own; the third lets a page be
-asked for a session by address.:
+Each one works on its own: the IDE plugin and the DSH bundle are the two halves of the same workflow, and
+the session-link plugin only lets a page be asked for a session by address. The DSH bundle carries both a
+Host half and a web-client half, so installing it covers the tool, the context line, and the clicks.
 
 | Package | Platform | What it does |
 |---|---|---|
 | [`jetbrains-companion/`](jetbrains-companion) | IntelliJ Platform plugin (Java, no Gradle) | **DSH Chat** tool window embedding DSH's own web client, one DSH session per IDE window, live workspace publication, and a loopback bridge so DSH can put a file in front of you. |
-| [`jetbrains-workspace/`](jetbrains-workspace) | DSH profile bundle (plain JavaScript) | Reads the IDE's workspace — including a module's multiple content roots from its `.iml` — into DSH as a tool, a runtime context line, and a registered workspace. Works with the companion running or from the IDE's own state files after it closed. |
+| [`jetbrains-workspace/`](jetbrains-workspace) | DSH profile bundle (host half + web-client half, plain JavaScript) | Reads the IDE's workspace — including a module's multiple content roots from its `.iml` — into DSH as a tool, a runtime context line, and a registered workspace. Works with the companion running or from the IDE's own state files after it closed. Sends opened and clicked files to the IDE: the Host half replaces DSH's default desktop opener, and the client half redirects the Sidebar file viewer. |
 | [`jetbrains-session-link/`](jetbrains-session-link) | DSH client plugin (plain JavaScript) | Lets `#dsh-session=<id>` — or a hash change on an open page — select that session without a reload. Optional: the chat panel falls back to the client's stored selection when it is absent. |
 
 > **Unofficial.** Neither package is made by, endorsed by, or affiliated with JetBrains or DeepSeek.
@@ -39,7 +40,7 @@ Each half is useful alone, and they do not depend on each other to install. What
 | Session selected without reloading the page | no — it seeds the client's stored selection and reloads once | — | yes, with `jetbrains-session-link` |
 | Change review of a turn (which files, and their diffs) | — | yes — publishes `<DSH home>/jetbrains-changes.json` with the coordinates DSH's own `/api/changes.*` routes need | yes |
 | A presented artifact opens in the IDE (`present` → editor tab) | — | opt-in — `autoOpenDeliverables: true`, and only for the window's own session | yes (needs the companion bridge) |
-| Clicking a deliverable or changed file opens it in the IDE | — | yes, on by default (`openInIde`) — falls back to the desktop opener | yes (needs the companion bridge) |
+| Clicking a deliverable or changed file opens it in the IDE | — | the wrap is on by default (`openInIde`), but the IDE itself needs the companion's bridge — without one the desktop opener still runs | yes |
 | Clicking a file in the DSH UI opens it in the IDE, not the DSH sidebar viewer | — | yes, on by default (`openSidebarFilesInIde`) — falls back to the sidebar | yes (needs the companion bridge) |
 
 So: install the **IDE plugin** to chat with DSH inside your IDE (it needs a DSH running locally, and
@@ -109,8 +110,11 @@ descriptor. For the round trip — the model naming your active file and opening
 ## Development
 
 ```sh
-# DSH bundle: schema, discovery, roles, workspace registration, runtime context
-cd jetbrains-workspace && node dev/check.mjs
+# DSH bundle: schema, discovery, roles, workspace registration, runtime context, review, opens
+cd jetbrains-workspace && node dev/check-synthetic.mjs
+
+# DSH bundle, client half: a file click asks the Host route, everything else keeps the sidebar
+cd jetbrains-workspace && node dev/check-client.mjs
 
 # IDE plugin: the IntelliJ-free half, the DSH client, the panel's auth path, address and scope rules
 cd jetbrains-companion && ./build.sh

@@ -19,7 +19,7 @@ this file is the short version plus the traps that already cost time here.
 ```sh
 cd jetbrains-workspace && node dev/check-synthetic.mjs   # synthetic inputs; needs no IDE, DSH, or display
 cd jetbrains-session-link && node dev/check.mjs          # the client half against a fake browser
-cd jetbrains-workspace && node dev/check.mjs             # drives the tools against this machine's IDE
+cd jetbrains-workspace && node dev/check-client.mjs      # the client half against a fake page
 cd jetbrains-companion && ./build.sh                      # compiles and installs the jar into the local IDE
 /usr/share/idea/jbr/bin/javac -cp build/stage -d build/check dev/*.java
 for c in Check ChatCheck UrlCheck dsh.companion.SelectionCheck dsh.companion.SessionCheck dsh.companion.ScopeCheck; do

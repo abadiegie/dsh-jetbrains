@@ -4,6 +4,10 @@
 
 Repository preparation for public release: MIT license, security model, CI, and package identity
 (`io.github.abadiegie.dsh-companion`, `dsh-jetbrains-workspace`).
+- Documentation pass after the click work: the root README names the bundle's two halves, the package README
+  documents `openInIde`, `openSidebarFilesInIde`, `changes`, and `changesPath`, `SECURITY.md` covers the
+  `/api/jetbrains.open` route behind DSH's own authentication, and every `dev/check.mjs` reference to the
+  renamed `dev/check-synthetic.mjs` (plus the new `dev/check-client.mjs`) is corrected.
 
 ## jetbrains-workspace 0.1.4
 

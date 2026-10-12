@@ -26,6 +26,14 @@ locally to sign a cookie whose audience is the DSH address you configured.
 
 If that trust boundary is not acceptable for a machine, do not install these plugins there.
 
+## The route a click asks
+
+`jetbrains-workspace` registers one more route on DSH's own loopback web server, `POST
+/api/jetbrains.open`. It sits behind the same authentication as every other `/api` route, so a caller needs
+the same browser-session cookie a browser gets; it opens nothing by itself, and it can only open a path the
+Host filesystem resolves for the session named in the request. It answers `409` when no IDE publishes a
+bridge, and the client half then falls back to DSH's Sidebar viewer.
+
 ## What the chat panel does
 
 - It embeds DSH's own web client in a JCEF browser inside the IDE and puts the signed cookie in that
