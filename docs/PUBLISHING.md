@@ -94,6 +94,7 @@ listening. Its files are plain ESM, so a release needs no build step — only th
 ## Verification before tagging
 
 ```sh
+cd jetbrains-workspace && node dev/check.mjs            # local acceptance against this machine's IDE
 cd jetbrains-workspace && node dev/check-synthetic.mjs  # schema, discovery, roles, context, registry, review, opens
 node dev/check-client.mjs                             # the client half against a fake page
 cd ../jetbrains-session-link && node dev/check.mjs    # the session-link client half

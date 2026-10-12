@@ -8,6 +8,10 @@ Repository preparation for public release: MIT license, security model, CI, and 
   documents `openInIde`, `openSidebarFilesInIde`, `changes`, and `changesPath`, `SECURITY.md` covers the
   `/api/jetbrains.open` route behind DSH's own authentication, and every `dev/check.mjs` reference to the
   renamed `dev/check-synthetic.mjs` (plus the new `dev/check-client.mjs`) is corrected.
+- `dev/check.mjs`, the local acceptance check, mounts the plugin again: it gained the stub members the plugin
+  now uses at apply time (`ctx.on` for the review listener, `ctx.inject` for the route and the desktop
+  opener) and a temporary review document, so it passes and no longer writes the real
+  `<DSH home>/jetbrains-changes.json`.
 
 ## jetbrains-workspace 0.1.4
 

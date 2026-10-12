@@ -261,10 +261,14 @@ use them directly even when the IDE reaches the project through a symlink.
 
 ## Development check
 
-`node dev/check-synthetic.mjs` registers the plugin against a stub context, validates both schemas with the
-Harness' own validators (`packages/core/tools/lib`), executes the tool against this machine's IDE
-state, asserts that every detected project directory is handed to a stub workspace registry, and
-prints the rendered result and the runtime-context line.
+`node dev/check.mjs` is the local acceptance check: it registers the plugin against a stub context,
+validates both schemas with the Harness' own validators (`packages/core/tools/lib`), executes the tool
+against this machine's IDE state, asserts that every detected project directory is handed to a stub
+workspace registry, and prints the rendered result and the runtime-context line.
+
+`node dev/check-synthetic.mjs` covers the same ground with entirely synthetic inputs — a fake companion
+descriptor, a fake IDE configuration directory, and a fake project with module files — so it needs no IDE,
+no DSH, and no display, and it is what CI runs.
 
 `node dev/check-client.mjs` drives the client half against a fake page: address decoding for both scopes,
 the line parameter, the fallback on a `404`, `409`, `500`, or a request that never answers, non-file

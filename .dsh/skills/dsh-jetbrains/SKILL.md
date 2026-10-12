@@ -17,6 +17,7 @@ this file is the short version plus the traps that already cost time here.
 ## Build and verify
 
 ```sh
+cd jetbrains-workspace && node dev/check.mjs             # local acceptance: the tools against this machine's IDE
 cd jetbrains-workspace && node dev/check-synthetic.mjs   # synthetic inputs; needs no IDE, DSH, or display
 cd jetbrains-session-link && node dev/check.mjs          # the client half against a fake browser
 cd jetbrains-workspace && node dev/check-client.mjs      # the client half against a fake page

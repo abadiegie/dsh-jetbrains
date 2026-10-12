@@ -78,12 +78,18 @@ function createRegistry(seed = []) {
 function mount(config, seed) {
   const tools = []
   const prompts = []
+  const warnings = []
   const registry = createRegistry(seed)
   const stub = {
     effect: (callback) => {
       const disposer = callback()
       return typeof disposer === 'function' ? disposer : () => {}
     },
+    // The review publisher registers a session listener at apply; `ctx.on` must exist even here.
+    on: () => () => {},
+    // Services this check does not model (the web route and the desktop opener wait for theirs).
+    inject: () => () => {},
+    logger: { warn: (message) => { warnings.push(String(message)) }, info: () => {} },
     tools: { register: (definition) => { tools.push(definition); return () => {} } },
     get: (name) => {
       if (name === 'systemPrompt') return { context: (entry) => { prompts.push(entry); return () => {} } }
@@ -91,8 +97,10 @@ function mount(config, seed) {
       return undefined
     },
   }
-  apply(stub, config)
-  return { tools, prompts, registry }
+  // A temporary review document: this check must never write the real DSH home, which an earlier
+  // version of it did.
+  apply(stub, { changesPath: join(tmpdir(), `dsh-check-changes-${process.pid}.json`), ...config })
+  return { tools, prompts, registry, warnings }
 }
 
 /** A companion descriptor whose pid belongs to this process, so the liveness check passes. */

@@ -110,7 +110,10 @@ descriptor. For the round trip — the model naming your active file and opening
 ## Development
 
 ```sh
-# DSH bundle: schema, discovery, roles, workspace registration, runtime context, review, opens
+# DSH bundle, local acceptance: the tools against this machine's IDE state (needs the checkout)
+cd jetbrains-workspace && node dev/check.mjs
+
+# DSH bundle, hermetic: schema, discovery, roles, workspace registration, runtime context, review, opens
 cd jetbrains-workspace && node dev/check-synthetic.mjs
 
 # DSH bundle, client half: a file click asks the Host route, everything else keeps the sidebar
