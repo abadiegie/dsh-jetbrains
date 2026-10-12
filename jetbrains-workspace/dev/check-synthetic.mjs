@@ -68,6 +68,8 @@ function mount(config, seed, services = {}) {
   const tools = []
   const prompts = []
   const listeners = new Map()
+  // A mount that names no sink would publish into the real harness home; keep every mount hermetic.
+  const sink = { changesPath: join(mkdtempSync(join(tmpdir(), 'dsh-changes-sink-')), 'jetbrains-changes.json') }
   const warnings = []
   const registry = createRegistry(seed)
   const stub = {
@@ -88,7 +90,7 @@ function mount(config, seed, services = {}) {
       return services[name]
     },
   }
-  apply(stub, config)
+  apply(stub, { ...sink, ...config })
   return { tools, prompts, registry, listeners, warnings }
 }
 
