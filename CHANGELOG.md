@@ -5,6 +5,14 @@
 Repository preparation for public release: MIT license, security model, CI, and package identity
 (`io.github.abadiegie.dsh-companion`, `dsh-jetbrains-workspace`).
 
+## jetbrains-session-link 1.0.0
+
+- A `dsh-session` URL parameter (query or fragment) selects that session, and a hash change does the
+  same on an already-open page; the parameter is cleared once honoured, and a refused open keeps it for
+  a retry instead of failing the plugin's activation.
+- Sets `window.__dshSessionLink` while listening, so a host can tell a page that has the plugin from one
+  that does not and avoid a reload that would restart the client boot.
+
 ## jetbrains-companion 0.2.0
 
 - `DSH Chat` tool window: DSH's web client embedded through JCEF, authenticated with a locally signed

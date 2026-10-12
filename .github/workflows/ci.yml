@@ -28,6 +28,30 @@ jobs:
       - name: Manifest is valid JSON
         run: node -e "JSON.parse(require('node:fs').readFileSync('package.json','utf8'))"
 
+  session-link:
+    name: Session link client plugin
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jetbrains-session-link
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Syntax check both halves
+        run: |
+          node --check index.js
+          node --check client.js
+          node --check dev/check.mjs
+
+      - name: Client behaviour against a fake browser
+        run: node dev/check.mjs
+
+      - name: Manifest is valid JSON
+        run: node -e "JSON.parse(require('node:fs').readFileSync('package.json','utf8'))"
+
   plugin:
     name: IDE plugin
     runs-on: ubuntu-latest

@@ -1,0 +1,13 @@
+{
+  "name": "dsh-jetbrains-session-link",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Lets a link open a session in the Web UI: a dsh-session parameter in the URL selects that session, so an embedding IDE panel can ask for a session without writing to the client's storage.",
+  "exports": { ".": "./index.js", "./client": "./client.js", "./package.json": "./package.json", "./locale/*.json": "./locale/*.json" },
+  "files": ["index.js", "client.js", "cordis.patch.yml", "README.md", "locale/*.json"],
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": { "platform": "web" }
+  }
+}

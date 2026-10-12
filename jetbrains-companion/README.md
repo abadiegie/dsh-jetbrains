@@ -41,7 +41,7 @@ streaming behave exactly as in the browser. The panel:
    pushes.
 
    `This Project's Session` first asks through the URL fragment a **session-link** client plugin
-   understands (`dsh-jetbrains-session-link`, a separate bundle), which needs no reload, and falls
+   understands (`jetbrains-session-link/` in this repository), which needs no reload, and falls
    back to the stored selection 1.5 s later — its script is idempotent, so a client the fragment
    already moved is not reloaded. The fragment ask is skipped when the page has no such plugin: the
    plugin sets a marker (`window.__dshSessionLink`) precisely so a host can tell the two cases apart.

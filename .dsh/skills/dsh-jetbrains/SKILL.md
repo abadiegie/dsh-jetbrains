@@ -1,6 +1,6 @@
 ---
 name: dsh-jetbrains
-description: Use when changing this repository's two JetBrains plugins — the DSH Companion IDE plugin (`jetbrains-companion/`, Java, JCEF chat panel, cookie auth, session and bridge plumbing) or the `dsh-jetbrains-workspace` DSH bundle (`jetbrains-workspace/`, workspace discovery, runtime context, workspace registration) — including building, running the development checks, and diagnosing the panel, cookie, session, or workspace behaviour.
+description: Use when changing this repository's JetBrains integration packages — the DSH Companion IDE plugin (`jetbrains-companion/`, Java, JCEF chat panel, cookie auth, session and bridge plumbing), the `dsh-jetbrains-workspace` DSH bundle (`jetbrains-workspace/`, workspace discovery, runtime context, workspace registration), or the `jetbrains-session-link` DSH client plugin (`jetbrains-session-link/`, the session URL fragment and its marker) — including building, running the development checks, and diagnosing the panel, cookie, session, or workspace behaviour.
 ---
 
 # Working on the DSH ⇄ JetBrains plugins
@@ -12,11 +12,13 @@ this file is the short version plus the traps that already cost time here.
 |---|---|---|---|
 | DSH Companion | `jetbrains-companion/` | the IDE process | Java, compiled by `build.sh` against the installed IDE |
 | dsh-jetbrains-workspace | `jetbrains-workspace/` | the DSH host process | plain JavaScript ESM, no build step |
+| jetbrains-session-link | `jetbrains-session-link/` | the browser (a DSH client plugin) | plain JavaScript ESM, no build step |
 
 ## Build and verify
 
 ```sh
 cd jetbrains-workspace && node dev/check-synthetic.mjs   # synthetic inputs; needs no IDE, DSH, or display
+cd jetbrains-session-link && node dev/check.mjs          # the client half against a fake browser
 cd jetbrains-workspace && node dev/check.mjs             # drives the tools against this machine's IDE
 cd jetbrains-companion && ./build.sh                      # compiles and installs the jar into the local IDE
 /usr/share/idea/jbr/bin/javac -cp build/stage -d build/check dev/*.java

@@ -1,0 +1,3 @@
+- insert:
+    - id: jetbrains-session-link
+      name: 'dsh-jetbrains-session-link'

@@ -7,7 +7,9 @@ What is already in place, and what only you can decide or do.
 - MIT `LICENSE`, `.gitignore` (build output, IDE state), `SECURITY.md`, `CHANGELOG.md`.
 - Package identity: plugin id `io.github.abadiegie.dsh-companion`, vendor `abadi gilang`
   (`https://github.com/abadiegie`), DSH bundle `dsh-jetbrains-workspace`.
-- A top-level `README.md` that states the requirements and the unofficial status.
+- A top-level `README.md` that states the requirements, what each package gives you, and the unofficial
+  status.
+- A third package, `jetbrains-session-link`, with its own `dev/check.mjs`, plus a CI job for it.
 - Development checks that skip themselves when their dependency is absent, plus a CI workflow for the
   parts that need neither an IDE nor a running DSH.
 
@@ -42,16 +44,16 @@ They version independently and neither installs the other.
 |---|---|---|---|
 | `jetbrains-companion` | `jetbrains-companion/build.sh` → `dist/dsh-companion.jar` | GitHub release asset; JetBrains Marketplace once the listing requirements are met | The Marketplace needs a real `<version>` bump per release, `<change-notes>`, a plugin icon, and a signed artifact. Users can also build it from source with no Gradle. |
 | `jetbrains-workspace` | nothing to build — plain ESM | the repository directory itself (install with `plugin_manager install_bundle`); npm later if you want | It is not a JetBrains artifact, so the Marketplace cannot carry it. Tag both halves in one release and say which version of each works together. |
+| `jetbrains-session-link` | nothing to build — plain ESM with a `dsh.client` half | the repository directory, installed the same way | Optional: without it the panel selects the session through the client's stored record and one reload. Its `dsh.client` half is served from the installed package, so replacing the package needs a DSH restart to load a fresh module generation. |
 
 The contract between them is DSH's own HTTP API plus the companion descriptor
 (`<DSH home>/jetbrains-companion.json`, with a `version` and a `source` marker). A mismatch is a clear
 refusal — a bundle without a live descriptor reads the IDE state files, and an `open_in_ide` call with no
 bridge names the missing companion — so a user can update one half ahead of the other.
 
-A third, optional package is not in this repository: `dsh-jetbrains-session-link`, a DSH *client* plugin
-that lets a URL or a hash change select a session without a page reload. The panel does not require it —
-without it the session is selected through the client's stored record and one reload — so it can ship
-later, on its own.
+`jetbrains-session-link` ships in the same repository and is installed the same way, but nothing requires
+it: the panel asks through its fragment and falls back to the stored selection when no such plugin is
+listening. Its files are plain ESM, so a release needs no build step — only the tag that names the pair.
 
 ## Verification before tagging
 

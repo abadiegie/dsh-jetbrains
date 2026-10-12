@@ -1,14 +1,16 @@
 # DSH ⇄ JetBrains
 
-Two small plugins that connect a local [DeepSeek Harness](../../) (DSH) to a JetBrains IDE, so the
-IDE and the agent share one workspace instead of two islands.
+Small packages that connect a local [DeepSeek Harness](../../) (DSH) to a JetBrains IDE, so the IDE and
+the agent share one workspace instead of two islands.
 
-They are independent halves of one workflow, and each works on its own:
+Two of them are independent halves of one workflow, and each works on its own; the third lets a page be
+asked for a session by address.:
 
 | Package | Platform | What it does |
 |---|---|---|
 | [`jetbrains-companion/`](jetbrains-companion) | IntelliJ Platform plugin (Java, no Gradle) | **DSH Chat** tool window embedding DSH's own web client, one DSH session per IDE window, live workspace publication, and a loopback bridge so DSH can put a file in front of you. |
 | [`jetbrains-workspace/`](jetbrains-workspace) | DSH profile bundle (plain JavaScript) | Reads the IDE's workspace — including a module's multiple content roots from its `.iml` — into DSH as a tool, a runtime context line, and a registered workspace. Works with the companion running or from the IDE's own state files after it closed. |
+| [`jetbrains-session-link/`](jetbrains-session-link) | DSH client plugin (plain JavaScript) | Lets `#dsh-session=<id>` — or a hash change on an open page — select that session without a reload. Optional: the chat panel falls back to the client's stored selection when it is absent. |
 
 > **Unofficial.** Neither package is made by, endorsed by, or affiliated with JetBrains or DeepSeek.
 > IntelliJ, IDEA and JetBrains are trademarks of JetBrains s.r.o.
@@ -34,7 +36,7 @@ Each half is useful alone, and they do not depend on each other to install. What
 | The model knows which IDE window is open (runtime context line) | — | yes, from the IDE's state files, or live when the companion runs | yes |
 | `jetbrains_workspace` tool: root project, module content roots, active file, caret, selection | — | yes | yes |
 | `jetbrains_open_in_ide`: the model opens a file in the IDE | — | no — it needs the companion's bridge | yes |
-| Session selected without reloading the page | no — it seeds the client's stored selection and reloads once | — | yes, with the optional `dsh-jetbrains-session-link` client plugin |
+| Session selected without reloading the page | no — it seeds the client's stored selection and reloads once | — | yes, with `jetbrains-session-link` |
 
 So: install the **IDE plugin** to chat with DSH inside your IDE (it needs a DSH running locally, and
 reads DSH's credential document to sign the browser cookie — see [SECURITY.md](SECURITY.md)). Install
@@ -76,6 +78,8 @@ descriptor. For the round trip — the model naming your active file and opening
   discovery, settings, verification harnesses, limits.
 - [`jetbrains-workspace/README.md`](jetbrains-workspace/README.md) — what it registers, where the data
   comes from, configuration, limits.
+- [`jetbrains-session-link/README.md`](jetbrains-session-link/README.md) — the fragment contract, the
+  marker a host reads, and what was verified in a browser and inside the IDE panel.
 - [`SECURITY.md`](SECURITY.md) — what these plugins read and what they can do on your machine. Read
   this before installing.
 - [`.dsh/skills/dsh-jetbrains/SKILL.md`](.dsh/skills/dsh-jetbrains/SKILL.md) — a DeepSeek Harness

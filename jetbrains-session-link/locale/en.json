@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Session Link",
+    "description": "Opens the session named by a dsh-session URL parameter, so a link or an embedding panel can choose a session without touching the client's own storage."
+  }
+}
