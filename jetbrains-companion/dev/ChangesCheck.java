@@ -1,4 +1,5 @@
 import dsh.companion.ChangesDiff;
+import dsh.companion.ChangesRevert;
 import dsh.companion.DshChanges;
 import dsh.companion.JsonParser;
 
@@ -18,7 +19,7 @@ public final class ChangesCheck {
     ChangesDiff diff = ChangesDiff.fromPayload(JsonParser.parse(payload));
     expect("kept\ngone\n".equals(diff.left()), "the left text keeps context and removed lines: " + quote(diff.left()));
     expect("kept\nadded\n".equals(diff.right()), "the right text keeps context and added lines: " + quote(diff.right()));
-    expect(diff.hunks() == 1, "the hunk count is reported");
+    expect(diff.hunkCount() == 1, "the hunk count is reported");
     expect("docs/b.md".equals(diff.title()), "the diff is titled by its display name: " + diff.title());
 
     ChangesDiff created = ChangesDiff.fromPayload(JsonParser.parse(
@@ -27,6 +28,15 @@ public final class ChangesCheck {
     expect(created.title().endsWith("(added by this turn)"), "an added file says so in its title");
     expect("new.txt".equals(created.display() == null ? created.path() : created.display()),
       "a payload without a display name falls back to the path");
+
+    // Reverting: the patch applied backwards, by content, all-or-nothing.
+    String current = "kept\nadded\n";
+    expect("kept\ngone\n".equals(ChangesRevert.reverted(current, diff)),
+      "a whole-file revert puts the removed lines back");
+    expect("kept\ngone\n".equals(ChangesRevert.reverted(current, diff, 0)), "a single hunk reverts alone");
+    expect(refusesRevert("kept\n", diff), "a text without the hunk is refused, not silently left alone");
+    expect(refusesRevert("something else\n", diff), "a file edited since the turn is refused, not half-reverted");
+    expect(created.isCreation() && !diff.isCreation(), "a created file is flagged, so a revert deletes it");
 
     Path document = Files.createTempFile("jetbrains-changes", ".json");
     Files.writeString(document, "{\"version\":1,\"source\":\"jetbrains-workspace\",\"sessions\":[{\"sessionId\":\"session-x\","
@@ -58,6 +68,16 @@ public final class ChangesCheck {
       System.exit(1);
     }
     System.out.println("\nchanges check: the review document and the diff payload both read correctly");
+  }
+
+  /** @return whether reverting against that text was refused. */
+  private static boolean refusesRevert(String current, ChangesDiff diff) {
+    try {
+      ChangesRevert.reverted(current, diff);
+      return false;
+    } catch (Exception expected) {
+      return true;
+    }
   }
 
   /** @return whether reading that document was refused. */

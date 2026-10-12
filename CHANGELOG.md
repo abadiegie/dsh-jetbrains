@@ -23,6 +23,14 @@ Repository preparation for public release: MIT license, security model, CI, and 
   document from another publisher, a missing one, the location override) and the payload splitter (context,
   added, and removed lines, the hunk count, and a payload with no display name).
 
+## jetbrains-companion 0.2.2
+
+- `Revert file…` in the `DSH Changes` tool window: a turn's change can be taken back by reverse-applying the
+  hunks DSH published. Hunks are located by content, all of them must be found, and a file edited since the
+  turn is refused rather than half-reverted; a file the turn created is deleted instead of rewritten.
+  `ChangesRevert` also reverts a single hunk, which `dev/ChangesCheck.java` covers along with the refusals,
+  so a per-hunk action needs no new logic.
+
 ## jetbrains-workspace 0.1.5
 
 - The review publisher looks for a turn's summary on a schedule instead of once: `workspace/changes` carries

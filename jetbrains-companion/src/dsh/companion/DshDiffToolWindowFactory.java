@@ -5,6 +5,7 @@ import com.intellij.diff.DiffManager;
 import com.intellij.diff.requests.SimpleDiffRequest;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ToolWindow;
@@ -21,9 +22,12 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.ListSelectionModel;
 import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -73,8 +77,13 @@ final class DshDiffPanel extends JPanel implements Disposable {
     this.project = project;
     JButton refresh = new JButton("Refresh");
     refresh.addActionListener(event -> reload());
+    JButton revert = new JButton("Revert file…");
+    revert.addActionListener(event -> revertSelected());
+    JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+    buttons.add(refresh);
+    buttons.add(revert);
     JPanel top = new JPanel(new BorderLayout(8, 0));
-    top.add(refresh, BorderLayout.WEST);
+    top.add(buttons, BorderLayout.WEST);
     top.add(status, BorderLayout.CENTER);
     add(top, BorderLayout.NORTH);
     list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -154,6 +163,48 @@ final class DshDiffPanel extends JPanel implements Disposable {
   }
 
   /**
+   * Take the selected file's change back. A file the turn created is deleted instead, and a file edited
+   * since the turn is refused by {@link ChangesRevert} rather than half-reverted.
+   */
+  private void revertSelected() {
+    DiffRow row = list.getSelectedValue();
+    if (row == null || row.file() == null) {
+      status.setText("Select a changed file, then revert it.");
+      return;
+    }
+    DshChanges.Turn turn = row.turn();
+    String name = row.file().display();
+    if (Messages.showYesNoDialog(project, "Take back this turn's change to " + name + "?",
+      "DSH Changes", Messages.getQuestionIcon()) != Messages.YES) {
+      return;
+    }
+    status.setText("Reverting " + name + "…");
+    ApplicationManager.getApplication().executeOnPooledThread(() -> {
+      try {
+        DshCompanionSettings.State settings = DshCompanionSettings.getInstance().state();
+        DshClient client = DshClient.locate(DshSessions.candidateUrls(settings), DshSessions.candidateHomes(settings));
+        ChangesDiff diff = client.changesDiff(turn.sessionId(), turn.seq(), row.index());
+        Path file = Path.of(turn.cwd() == null ? "" : turn.cwd(), row.file().path());
+        String outcome;
+        if (diff.isCreation()) {
+          Files.deleteIfExists(file);
+          outcome = "Deleted " + name + ", which this turn created.";
+        } else {
+          String reverted = ChangesRevert.reverted(Files.readString(file, StandardCharsets.UTF_8), diff);
+          Files.writeString(file, reverted, StandardCharsets.UTF_8);
+          outcome = "Reverted " + name + ".";
+        }
+        ApplicationManager.getApplication().invokeLater(() -> {
+          status.setText(outcome);
+          reload();
+        });
+      } catch (IOException | ChangesRevert.Refused failure) {
+        ApplicationManager.getApplication().invokeLater(() -> status.setText(failure.getMessage()));
+      }
+    });
+  }
+
+  /**
    * Show one diff as a native side-by-side comparison.
    *
    * @param diff - the payload DSH served, already split into both texts.
@@ -168,6 +219,6 @@ final class DshDiffPanel extends JPanel implements Disposable {
       "before this turn",
       "after this turn");
     DiffManager.getInstance().showDiff(project, request);
-    status.setText(diff.hunks() + (diff.hunks() == 1 ? " hunk" : " hunks") + " · " + diff.title());
+    status.setText(diff.hunkCount() + (diff.hunkCount() == 1 ? " hunk" : " hunks") + " · " + diff.title());
   }
 }
