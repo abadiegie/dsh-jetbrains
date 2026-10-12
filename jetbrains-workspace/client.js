@@ -6,6 +6,10 @@
  * the sidebar"). That call never reaches the Host, so a Host-side opener cannot redirect it; wrapping the
  * client service is the one place it can be redirected without touching another plugin's DOM.
  *
+ * The Host may not answer: an IDE that holds the editor lock, a route that is not registered, a page whose
+ * Host went away. The request is therefore bounded, and a request that does not answer in time leaves the
+ * click to the Sidebar — a click that opens nothing at all is worse than one that opens the sidebar.
+ *
  * The address grammar is the resource model's: `dsh-resource://file/session/<sessionId>/<path>` for a
  * session file, `dsh-resource://file/absolute/<path>` for one outside every session. Everything else — and
  * every failure, including a Host without an IDE bridge (409) or without this route at all (404) — is left
@@ -66,6 +70,8 @@ window.__ModuleLoader__.load({
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(request),
+          // A hung Host must not swallow the click: past this bound the Sidebar opens instead.
+          signal: AbortSignal.timeout(2_500),
         })
         if (response.status === 204) {
           console.info(`dsh-jetbrains-workspace: opened ${request.path} in the IDE`)

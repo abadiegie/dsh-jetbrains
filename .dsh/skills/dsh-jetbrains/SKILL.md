@@ -111,7 +111,13 @@ Live diagnosis: the panel forwards its client console to `idea.log` as `dsh-comp
     `dsh-resource://file/session/<sessionId>/<path>` or `.../absolute/<path>`, component-encoded with `:`
     literal; a line travels in the options, not the address. A client half reaches an open page through the
     module loader, so the first page after it ships needs a reload.
-17. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
+17. **Two route tables, and only one answers a `Response`.** `connection.fetch.register({ path, methods,
+    requestBody: 'buffered', fetch })` is what the shipped `present.open`/`changes.open` routes use;
+    `webServer.register({ kind, path, methods, handler })` takes a Node `(req, res)` handler instead. A route
+    registered on the wrong table never answers, so the request hangs and a client awaiting it opens nothing
+    — bound every wait on both sides (this module 2.5 s client-side, the bridge call 5 s) and fall back
+    rather than leaving a click with no effect.
+18. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
     repository uses `io.github.abadiegie.dsh-companion`.
 
 ## Where the rest is written

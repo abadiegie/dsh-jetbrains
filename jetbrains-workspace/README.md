@@ -65,6 +65,13 @@ hands the absolute path (with its line, when the click carried one) to the compa
 | `404` | this deployment does not register the route (`openSidebarFilesInIde: false`) → the Sidebar |
 | anything else, or a failed request | the Sidebar |
 
+The route registers on the fetch-shaped route table `connection.fetch.register` — the same one the shipped
+`present.open` and `changes.open` routes use — because that is the shape whose handler answers with a
+`Response`. `webServer.register` takes a Node `(req, res)` handler instead, and a route registered there
+never answers: the request hangs, and a client waiting on it opens nothing. The client half therefore also
+bounds its wait (2.5 s) and lets the Sidebar take the click when the Host does not answer in time, so the
+worst case is the old behaviour rather than a click that does nothing.
+
 Turning it off is the same one key (`openSidebarFilesInIde: false`), and the route is then simply not
 registered, which the client reads as "not ours". Like every other setting here, it takes effect when the
 row is mounted again, so restart the Host after changing it. The client half reaches an already-open page

@@ -98,12 +98,24 @@ expect(requests.length === before, 'a failing request is not retried')
 expect(sidebar.shown.length === 4, `every declined or failed open falls back to the Sidebar: ${JSON.stringify(sidebar.shown.map(entry => entry.url))}`)
 expect(sidebar.shown[0].url === 'dsh-resource://file/session/session-ab/README.md', 'the fallback shows the address the click asked for')
 
+// A Host that never answers must not swallow the click either.
+globalThis.fetch = async (url, init) => new Promise((resolve, reject) => {
+  init.signal?.addEventListener('abort', () => reject(init.signal.reason ?? new Error('aborted')))
+})
+const hungBefore = sidebar.shown.length
+const hungStart = Date.now()
+sidebar.openResource('dsh-resource://file/session/session-ab/hung.md')
+await new Promise(resolve => setTimeout(resolve, 3_000))
+expect(sidebar.shown.length === hungBefore + 1 && sidebar.shown[hungBefore].url.endsWith('hung.md'),
+  `a request that never answers still opens the Sidebar (${Date.now() - hungStart}ms)`)
+expect(warnings.some(line => line.includes('hung.md')), 'the unanswered request is reported')
+
 // Addresses this half does not serve go straight to the Sidebar, without a request.
 const requestsBefore = requests.length
 sidebar.openResource('dsh-resource://diff/session/session-ab/12')
 sidebar.openResource('dsh-resource://browser/https://example.test')
 expect(requests.length === requestsBefore, 'a non-file address asks the Host nothing')
-expect(sidebar.shown.length === 6, 'a non-file address opens in the Sidebar')
+expect(sidebar.shown.length === 7, 'a non-file address opens in the Sidebar')
 
 // Disposal restores the service method.
 const cleanup = listeners.get('dispose')

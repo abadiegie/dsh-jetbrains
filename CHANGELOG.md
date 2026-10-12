@@ -15,6 +15,11 @@ Repository preparation for public release: MIT license, security model, CI, and 
   `404`, any other failure, or any non-file address keeps the Sidebar behaviour, so a click always opens
   somewhere. The client half needs a page reload the first time it ships, and a Host restart to register
   the route.
+- The route registers on `connection.fetch.register`, the fetch-shaped table the shipped `present.open` and
+  `changes.open` routes use. The first version used `webServer.register`, whose handler is a Node
+  `(req, res)` pair: the route never answered, every click hung, and a click opened nothing at all — neither
+  the IDE nor the Sidebar. The client half now also bounds its request (2.5 s) and falls back to the Sidebar,
+  and the check rejects a route that is not fetch-shaped instead of accepting whatever it is handed.
 
 ## jetbrains-workspace 0.1.3
 

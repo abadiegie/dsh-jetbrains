@@ -501,7 +501,19 @@ console.log('a click opens the file in the IDE, falls back to the desktop opener
 const routes = []
 const statCalls = []
 const routeServices = {
-  webServer: { register: (route) => { routes.push(route); return () => {} } },
+  connection: {
+    fetch: {
+      register: (definition) => {
+        // The shipped routes use this fetch-shaped table; webServer.register takes a Node (req, res) handler
+        // and a route registered there never answers.
+        if (typeof definition?.fetch !== 'function' || definition?.requestBody !== 'buffered' || !Array.isArray(definition?.methods)) {
+          throw new Error(`the open route must be fetch-shaped: ${JSON.stringify(Object.keys(definition ?? {}))}`)
+        }
+        routes.push(definition)
+        return () => {}
+      },
+    },
+  },
   sessions: { list: () => [{ header: { id: 'session-ab', cwd: project } }] },
   workspaceFiles: {
     stat: async (scope, path) => {
@@ -516,7 +528,7 @@ if (route === undefined) throw new Error(`the open route must be registered at $
 if (!route.methods.includes('POST')) throw new Error('the open route serves POST')
 
 /** Call the registered route the way the client half does. */
-const callRoute = async (body) => route.handler(new Request(`http://127.0.0.1:3080${OPEN_ROUTE_PATH}`, {
+const callRoute = async (body) => route.fetch(new Request(`http://127.0.0.1:3080${OPEN_ROUTE_PATH}`, {
   method: 'POST',
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify(body),
@@ -549,7 +561,7 @@ routed.disposers.forEach(dispose => dispose())
 routes.length = 0
 const unrouted = mount({ ...clickOptions, liveBridge: false }, undefined, routeServices)
 const declining = routes.find(entry => entry.path === OPEN_ROUTE_PATH)
-const declined = await declining.handler(new Request(`http://127.0.0.1:3080${OPEN_ROUTE_PATH}`, {
+const declined = await declining.fetch(new Request(`http://127.0.0.1:3080${OPEN_ROUTE_PATH}`, {
   method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: '/tmp/any.md' }),
 }))
 if (declined.status !== 409) throw new Error(`without a bridge the route must decline with 409, got ${declined.status}`)
