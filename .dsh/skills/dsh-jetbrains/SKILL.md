@@ -83,7 +83,12 @@ Live diagnosis: the panel forwards its client console to `idea.log` as `dsh-comp
     not a plain POST). The recorder keeps nothing across restarts, so a reopened conversation has no
     review for its earlier turns. `jetbrains-workspace` publishes the coordinates to
     `<home>/.dsh/jetbrains-changes.json` (config `changes`, `changesPath`) for exactly this reason.
-13. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
+13. **Presented artifacts announce themselves.** `present` appends `deliverables/presented`
+    (`{turn, callId, files:[{path,…}]}`), which is the hook for acting on an artifact; nothing opens a
+    file by itself unless `jetbrains-workspace` runs with `autoOpenDeliverables: true`, and then only for
+    the session whose `cwd` is the IDE window's junction. An override of that row replaces its whole
+    `config`, so every key must be restated.
+14. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
     repository uses `io.github.abadiegie.dsh-companion`.
 
 ## Where the rest is written

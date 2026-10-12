@@ -44,6 +44,40 @@ changed JavaScript: the Loader resolves a package specifier once, so edits to `s
 the next DSH restart. To load an edit without restarting, install the package under a changed
 `name` in `package.json` (a new specifier resolves to a new module URL) and remove the old bundle.
 
+## Opening a presented file in the IDE
+
+`present` is how a model declares an artifact — a report, a spreadsheet, a rendered page — as the thing
+to look at. DSH appends a durable `deliverables/presented` session event at that moment, and this plugin
+can turn it into an editor tab through the companion bridge, which is the same loop the
+`jetbrains_open_in_ide` tool uses.
+
+It is **off unless the row asks for it** (`autoOpenDeliverables: true`): an editor that opens tabs by
+itself is a surprise, and `jetbrains_open_in_ide` already lets a model ask explicitly. When it is on, only
+the session this IDE window owns is served — the one whose working directory is the window's junction —
+so a background or automation session presenting a file cannot open tabs in an IDE nobody is watching.
+Presented files may live anywhere, so the check is on the session, not on the path. A delivery with no
+running companion, or one the bridge refuses, is logged and otherwise ignored: the event feed never waits
+on an editor.
+
+To turn it on for one profile without changing this repository's default, install a small bundle that
+restates the row with the extra key:
+
+```yaml
+# dsh-jetbrains-deliverables/cordis.patch.yml
+- id: jetbrains-workspace
+  name: 'dsh-jetbrains-workspace'
+  config:
+    autoOpenDeliverables: true
+    context: true
+    workspaceMode: single
+    registerWorkspaces: false
+    junctionRoot: common-parent
+    pruneProjectWorkspaces: false
+```
+
+An override replaces the whole `config`, so every key the deployment relies on has to be restated — the
+values above are the ones this repository ships.
+
 ## The change review document
 
 The Host's change recorder summarizes a turn's changed files, but it keeps them in memory and announces

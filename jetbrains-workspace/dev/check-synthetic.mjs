@@ -11,9 +11,11 @@
  */
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { apply } from '../src/plugin.js'
+import { presentedPaths } from '../src/deliverables.js'
 
 // The Harness' own validators are optional, so this check runs without a DSH installation.
 const HARNESS = process.env.DSH_HARNESS_ROOT ?? '/mnt/media/project/deepseek-harness'
@@ -293,5 +295,68 @@ changesPlugin.listeners.get('session/event')(sessionA, { type: 'turn/end', seq: 
 if (published().sessions.length !== 2) throw new Error('a non-change event must not publish')
 if (existsSync(`${changesPath}.tmp`)) throw new Error('the write must leave no temporary file behind')
 console.log('the review document carries each turn\'s coordinates, replaces a session entry, and stays atomic')
+
+// 8. Presenting a file: with `autoOpenDeliverables` the window's own session opens it through the
+//    companion bridge, and nothing else does.
+const requests = []
+const bridge = createServer((request, response) => {
+  let body = ''
+  request.on('data', chunk => { body += chunk })
+  request.on('end', () => {
+    requests.push({ url: request.url, authorization: request.headers.authorization, body: body === '' ? {} : JSON.parse(body) })
+    response.writeHead(200, { 'Content-Type': 'application/json' })
+    response.end('{"ok":true}')
+  })
+})
+await new Promise(resolve => bridge.listen(0, '127.0.0.1', resolve))
+const bridgePort = bridge.address().port
+const deliveringDescriptor = writeDescriptor({
+  version: 1, source: 'jetbrains-companion', port: bridgePort, token: 'delivery-token', pid: process.pid,
+  workspace: {
+    product: 'IC', productName: 'IntelliJ IDEA 2099.9', build: 'IC-2099.9',
+    projects: [{ name: 'window', path: project, roots: [project] }],
+    openFiles: [], updatedAt: new Date().toISOString(),
+  },
+})
+
+// `presentedPaths` keeps only what it serves.
+if (presentedPaths({ type: 'turn/end', data: { files: [{ path: '/a' }] } }).length !== 0) {
+  throw new Error('a non-present event must name nothing')
+}
+if (presentedPaths({ type: 'deliverables/presented', data: { files: [{ path: ' /a ' }, { name: 'no path' }, { path: '' }] } }).length !== 1) {
+  throw new Error('only entries with a non-empty path are presentable')
+}
+
+const deliver = mount(
+  { probe: false, liveBridge: true, home: fixture, configRoots: [fixture], bridgePath: deliveringDescriptor, autoOpenDeliverables: true },
+  undefined, {})
+const announceDelivery = (session, paths) => deliver.listeners.get('session/event')(session, {
+  type: 'deliverables/presented', seq: 90, data: { turn: 2, files: paths.map(path => ({ path })) },
+})
+
+announceDelivery({ header: { id: 'session-window', cwd: project } }, ['/tmp/report.pdf', '/tmp/table.xlsx'])
+await new Promise(resolve => setTimeout(resolve, 300))
+if (requests.length !== 2) throw new Error(`the window's session must open both presented files, got ${requests.length}`)
+if (requests[0].url !== '/open' || requests[0].authorization !== 'Bearer delivery-token') {
+  throw new Error(`an open must carry the bridge token: ${JSON.stringify(requests[0])}`)
+}
+if (requests[0].body.path !== '/tmp/report.pdf' || requests[1].body.path !== '/tmp/table.xlsx') {
+  throw new Error(`an open must name the presented file: ${JSON.stringify(requests.map(entry => entry.body))}`)
+}
+
+// A session this IDE window does not own stays closed, and a composition without the opt-in never opens.
+announceDelivery({ header: { id: 'session-elsewhere', cwd: '/tmp' } }, ['/tmp/other.pdf'])
+await new Promise(resolve => setTimeout(resolve, 300))
+if (requests.length !== 2) throw new Error('a session outside the IDE window must not open tabs')
+const silent = mount(
+  { probe: false, liveBridge: true, home: fixture, configRoots: [fixture], bridgePath: deliveringDescriptor },
+  undefined, {})
+silent.listeners.get('session/event')(
+  { header: { id: 'session-window', cwd: project } },
+  { type: 'deliverables/presented', seq: 91, data: { turn: 3, files: [{ path: '/tmp/quiet.pdf' }] } })
+await new Promise(resolve => setTimeout(resolve, 300))
+if (requests.length !== 2) throw new Error('auto-open must stay off unless the row asks for it')
+await new Promise(resolve => bridge.close(resolve))
+console.log('a presented file opens in the IDE for the window session, and only when the row opts in')
 
 console.log('\nsynthetic check: discovery, roles, context, stability, and registration all check out')

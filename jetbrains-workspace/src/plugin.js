@@ -12,9 +12,10 @@
 
 import { homedir } from 'node:os'
 import { basename } from 'node:path'
-import { discoverWorkspace, discoverWorkspaceSync, defaultConfigRoots, commonParentOf } from './discovery.js'
+import { discoverWorkspace, discoverWorkspaceSync, defaultConfigRoots, commonParentOf, canonicalPath } from './discovery.js'
 import { readLiveBridge, withLiveBridge, openInIde } from './bridge.js'
 import { publishChanges } from './changes.js'
+import { openPresentedDeliverables } from './deliverables.js'
 
 /** Loader entry name. */
 export const name = 'jetbrains-workspace'
@@ -203,6 +204,7 @@ function settingsFrom(config) {
     bridgePath: optionalString(settings.bridgePath, 'bridgePath'),
     changes: settings.changes !== false,
     changesPath: optionalString(settings.changesPath, 'changesPath'),
+    autoOpenDeliverables: settings.autoOpenDeliverables === true,
     contextOrder: optionalPositiveNumber(settings.contextOrder, 'contextOrder') ?? 130,
     contextRootLimit: optionalPositiveInteger(settings.contextRootLimit, 'contextRootLimit') ?? 12,
     cacheTtlMs: optionalPositiveNumber(settings.cacheTtlMs, 'cacheTtlMs') ?? 3_000,
@@ -318,6 +320,19 @@ export function apply(ctx, config) {
     ctx.effect(() => publishChanges(ctx, {
       home: settings.home,
       ...settings.changesPath !== undefined ? { changesPath: settings.changesPath } : {},
+    }))
+  }
+  if (settings.autoOpenDeliverables) {
+    ctx.effect(() => openPresentedDeliverables(ctx, {
+      bridgeOptions,
+      // Only the session this IDE window owns: its working directory is the window's junction, the same
+      // directory the companion creates that session in.
+      belongs: (session) => {
+        const workspace = report().current?.workspace
+        const root = workspace === undefined ? undefined : junctionRoot(workspace, settings)
+        const cwd = session?.header?.cwd
+        return root !== undefined && typeof cwd === 'string' && canonicalPath(cwd) === canonicalPath(root)
+      },
     }))
   }
   const registerWorkspaces = settings.workspaceMode === 'off'

@@ -5,6 +5,13 @@
 Repository preparation for public release: MIT license, security model, CI, and package identity
 (`io.github.abadiegie.dsh-companion`, `dsh-jetbrains-workspace`).
 
+## jetbrains-workspace 0.1.2
+
+- `autoOpenDeliverables` (default off) opens the files a session presents in the IDE, through the
+  companion bridge, at the moment DSH appends its `deliverables/presented` event. Only the session the
+  IDE window owns is served, presented files may live anywhere, and a refused or unanswerable bridge is
+  logged rather than thrown.
+
 ## jetbrains-workspace 0.1.1
 
 - Publishes `<home>/.dsh/jetbrains-changes.json`: for every announced turn, the `workspace/changes`
