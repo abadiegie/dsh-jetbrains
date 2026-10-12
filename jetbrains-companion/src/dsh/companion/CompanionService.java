@@ -343,9 +343,15 @@ public final class CompanionService implements Disposable {
    * @param turn - the turn number.
    */
   private void showChangedDiff(ChangesDiff diff, String display, String cwd, int turn) {
+    // The window that owns the workspace, not merely the first one open: with several projects a notice
+    // for one of them must not open its diff in another. A window whose content roots contain the turn's
+    // root wins; only then does the first non-default window do.
     Project project = null;
     for (Project candidate : ProjectManager.getInstance().getOpenProjects()) {
-      if (!candidate.isDefault()) {
+      if (candidate.isDefault()) continue;
+      if (project == null) project = candidate;
+      String base = candidate.getBasePath();
+      if (cwd != null && base != null && cwd.replace('\\', '/').startsWith(base.replace('\\', '/'))) {
         project = candidate;
         break;
       }
