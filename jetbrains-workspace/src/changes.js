@@ -140,7 +140,14 @@ export function publishChanges(ctx, options = {}) {
       // answers leaves the attempt count in the document and warns once per session.
       const delay = summaryDelays[attempt]
       if (delay !== undefined) {
-        ctx.setTimeout(() => record(session, event, attempt + 1), delay)
+        // The Host's own timer, not `ctx.setTimeout`: the plugin context has no such mixed-in helper in the
+        // running composition — the call threw, the listener was dropped with it, and the document's
+        // `lastEvent` stayed at `attempts: 1, outcome: pending` forever. `ctx.setTimeout` is still used when
+        // it exists, so a composition that provides it keeps its lifetime handling.
+        const schedule = typeof ctx.setTimeout === 'function'
+          ? (callback, millis) => ctx.setTimeout(callback, millis)
+          : (callback, millis) => setTimeout(callback, millis)
+        schedule(() => record(session, event, attempt + 1), delay)
       } else if (!warned.has(id)) {
         warned.add(id)
         lastEvent = { ...lastEvent, outcome: 'unavailable' }
