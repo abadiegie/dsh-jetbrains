@@ -30,6 +30,10 @@ Repository preparation for public release: MIT license, security model, CI, and 
   appending the event, which on this repository takes longer than the single 200 ms retry allowed — so turns
   were dropped while the same sequence answered minutes later. The delays now run 100 ms → 5 s over about
   twenty seconds, and they are injectable (`summaryDelays`, test-only) so a check can exhaust them at once.
+- The retry itself uses the Host's own timer: the running composition mixes no `ctx.setTimeout` into a
+  plugin context, so the scheduled look threw and never ran — the document's `lastEvent` sat at
+  `attempts: 1, outcome: pending` while the summary was already there. `ctx.setTimeout` is still preferred
+  when a composition provides it.
 - The document also records what the listener saw: `lastEvent` carries the session, sequence, turn, attempt
   count, and an outcome of `pending`, `published`, or `unavailable`. A reader can now tell "no turn yet" from
   "a turn the publisher could not read" without the Host's terminal, which is where that warning used to go.
