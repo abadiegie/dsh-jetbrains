@@ -18,6 +18,12 @@ an empty left side and says so in the tab title; a deleted file the same on the 
 It needs the bundle mounted and one turn that changed a file; with nothing published yet the panel says so
 instead of showing an empty list. Like every IDE-plugin change, a new build needs an **IDE restart**.
 
+Verified on this machine for release 0.2.1: `build.sh` compiles the two new classes and installs the jar into
+the IDE's user-plugin directory, the IDE starts with it without any tool-window error in `idea.log`, the
+companion publishes its descriptor from the running IDE, and `dev/ChangesCheck.java` passes with no IDE and
+no DSH. What a screenshot cannot confirm from the outside — the panel as drawn on screen — is left to a
+reader of the IDE.
+
 ## What it does
 
 | Behaviour | Detail |
