@@ -23,6 +23,12 @@ Repository preparation for public release: MIT license, security model, CI, and 
   document from another publisher, a missing one, the location override) and the payload splitter (context,
   added, and removed lines, the hunk count, and a payload with no display name).
 
+## jetbrains-companion 0.2.5
+
+- The changes panel is reachable from the **Tools** menu (`DSH Changes`), and its tool window moved out of the
+  right stripe's secondary group, where it could hide behind the stripe's overflow chevron. Nothing about the
+  panel changed; it could be loaded and invisible at once, which is what a reader reported.
+
 ## jetbrains-companion 0.2.4
 
 - Revert one hunk at a time: once a file's diff has been opened, its hunks appear as rows under it and the

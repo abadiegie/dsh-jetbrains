@@ -2,7 +2,7 @@
 <idea-plugin>
   <id>io.github.abadiegie.dsh-companion</id>
   <name>DSH Companion</name>
-  <version>0.2.4</version>
+  <version>0.2.5</version>
   <vendor url="https://github.com/abadiegie">abadi gilang</vendor>
   <description><![CDATA[
       Links JetBrains IDEs to a local DeepSeek Harness process, without any DSH-side plugin.
@@ -32,7 +32,7 @@
     <notificationGroup id="DshCompanion" displayType="BALLOON" />
     <toolWindow id="DSH Changes"
                 anchor="right"
-                secondary="true"
+                secondary="false"
                 factoryClass="dsh.companion.DshDiffToolWindowFactory" />
     <toolWindow id="DSH Chat"
                 anchor="right"
@@ -59,6 +59,12 @@
             description="Copy every open project root, the active file, and the selection as markdown">
       <add-to-group group-id="EditorPopupMenu" anchor="last" />
       <add-to-group group-id="ProjectViewPopupMenu" anchor="last" />
+      <add-to-group group-id="ToolsMenu" anchor="last" />
+    </action>
+    <action id="dsh.companion.changes"
+            class="dsh.companion.ShowDshChangesAction"
+            text="DSH Changes"
+            description="Show the DSH changes panel: each published turn and its diff">
       <add-to-group group-id="ToolsMenu" anchor="last" />
     </action>
     <action id="dsh.companion.status"
