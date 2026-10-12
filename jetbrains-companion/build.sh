@@ -42,6 +42,10 @@ echo "build: packaging $JAR"
 
 echo "build: installing into $PLUGIN_DIR/lib"
 mkdir -p "$PLUGIN_DIR/lib"
-cp "$JAR" "$PLUGIN_DIR/lib/dsh-companion.jar"
+# Install by rename, never by rewriting the file the IDE may be reading: `cp` overwrites the same inode, so
+# a running IDE that loads a class lazily afterwards reads a mixture of two builds. A rename swaps the
+# directory entry and leaves the inode a running IDE holds untouched, which is what keeps it loadable.
+cp "$JAR" "$PLUGIN_DIR/lib/.dsh-companion.jar.new"
+mv -f "$PLUGIN_DIR/lib/.dsh-companion.jar.new" "$PLUGIN_DIR/lib/dsh-companion.jar"
 
 echo "build: done — restart the IDE to load $PLUGIN_DIR"
