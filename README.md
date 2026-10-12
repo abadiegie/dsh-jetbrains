@@ -33,6 +33,17 @@ Host half and a web-client half, so installing it covers the tool, the context l
 - **Nothing is lost while the IDE is closed.** The review document outlives the IDE: on the next start the
   companion mentions the turns it missed, with one click to the panel.
 
+## Screenshots
+
+| | |
+|---|---|
+| ![A turn's diff and both tool windows](docs/screenshots/01-overview-diff-and-chat.png) | ![The native diff of one turn](docs/screenshots/02-native-diff.png) |
+| ![The changes panel, with hunks](docs/screenshots/03-changes-panel.png) | ![DSH Chat inside the IDE](docs/screenshots/04-chat-panel.png) |
+
+Taken from one session on a running IDE: a turn's diff opened in a native side-by-side tab (`README.md ·
+DSH turn 64`), the `DSH Changes` panel listing two turns and their files with each file's hunks under it,
+and `DSH Chat` beside them.
+
 ## What each half gives you
 
 Each half is useful alone, and they do not depend on each other to install. What you get changes:

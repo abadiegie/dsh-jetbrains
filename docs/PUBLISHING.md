@@ -72,6 +72,23 @@ About field.
 - **Marketplace.** Requires a real `<version>` bump per release, `<change-notes>`, a plugin icon, and a
   signed artifact. The plugin id above is what a Marketplace listing would keep forever.
 
+## Screenshots for a listing
+
+`docs/screenshots/` holds the four images a JetBrains Marketplace listing wants, all from one capture of a
+running IDE so they agree with each other:
+
+| File | What it shows | Use |
+|---|---|---|
+| `01-overview-diff-and-chat.png` | the whole window: a native diff tab, `DSH Chat`, and `DSH Changes` | the listing's first image |
+| `02-native-diff.png` | one turn's diff, side by side, with its two labels | the diff feature |
+| `03-changes-panel.png` | turns, files, and the hunks under a file, with the refresh and revert actions | the review feature |
+| `04-chat-panel.png` | the embedded DSH client with its toolbar | the chat feature |
+
+The Marketplace form takes PNG or JPEG up to 2 MB each; these are well under that. Take fresh ones the same
+way: open the panels, then capture the IDE window by its id rather than the screen —
+`import -window "$(wmctrl -l | awk '/your project/ {print $1; exit}')" shot.png` — which is what produced
+these, and is why they show the IDE and not whatever else was on top.
+
 ## Release the artifacts
 
 The IDE plugin and the DSH packages version independently, and none of them installs another.
