@@ -326,9 +326,9 @@ export function apply(ctx, config) {
       ...settings.changesPath !== undefined ? { changesPath: settings.changesPath } : {},
     }))
   }
-  if (settings.openInIde) {
-    ctx.effect(() => openDesktopPathsInIde(ctx, { bridgeOptions }))
-  }
+  // `ctx.inject` inside owns the lifecycle: the wrap waits for the session controller and is undone with
+  // this plugin, so no outer effect is needed.
+  if (settings.openInIde) openDesktopPathsInIde(ctx, { bridgeOptions })
   if (settings.autoOpenDeliverables) {
     ctx.effect(() => openPresentedDeliverables(ctx, {
       bridgeOptions,

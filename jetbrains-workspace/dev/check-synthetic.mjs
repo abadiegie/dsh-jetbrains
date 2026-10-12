@@ -76,12 +76,35 @@ function mount(config, seed, services = {}) {
   const warnings = []
   const disposers = []
   const registry = createRegistry(seed)
+  const pendingInjects = []
+  /** Run one pending inject callback against the services available now. */
+  const runInject = (names, callback) => {
+    const child = {
+      effect: (effectCallback) => {
+        const disposer = effectCallback()
+        const cleanup = typeof disposer === 'function' ? disposer : () => {}
+        disposers.push(cleanup)
+        return cleanup
+      },
+      logger: { warn: (message) => warnings.push(String(message)) },
+      get: (name) => services[name],
+    }
+    for (const name of names) child[name] = services[name]
+    const returned = callback(child)
+    if (typeof returned === 'function') disposers.push(returned)
+  }
   const stub = {
     effect: (callback) => {
       const disposer = callback()
       const cleanup = typeof disposer === 'function' ? disposer : () => {}
       disposers.push(cleanup)
       return cleanup
+    },
+    // Mirrors Cordis: the callback runs when every named service exists, and waits when one does not.
+    inject: (names, callback) => {
+      if (names.every(name => services[name] !== undefined)) runInject(names, callback)
+      else pendingInjects.push({ names, callback })
+      return () => {}
     },
     tools: { register: (definition) => { tools.push(definition); return () => {} } },
     on: (name, listener, options) => {
@@ -98,7 +121,22 @@ function mount(config, seed, services = {}) {
     },
   }
   apply(stub, { ...sink, ...config })
-  return { tools, prompts, registry, listeners, listenerOptions, warnings, disposers }
+  return {
+    tools, prompts, registry, listeners, listenerOptions, warnings, disposers,
+    /** Names whose inject callback is still waiting for a service. */
+    pending: () => pendingInjects.map(entry => entry.names.join(',')),
+    /** Make services appear, as another row mounting later would, and run callbacks that now can. */
+    settle: (patch) => {
+      Object.assign(services, patch)
+      for (let index = pendingInjects.length - 1; index >= 0; index -= 1) {
+        const entry = pendingInjects[index]
+        if (entry.names.every(name => services[name] !== undefined)) {
+          pendingInjects.splice(index, 1)
+          runInject(entry.names, entry.callback)
+        }
+      }
+    },
+  }
 }
 
 /** A companion descriptor whose pid belongs to this process, so its liveness check passes. */
@@ -415,8 +453,14 @@ const controller = { opens: [], openPath: async (path) => { controller.opens.pus
 const originalOpenPath = controller.openPath
 const clickOptions = { probe: false, home: fixture, configRoots: [fixture] }
 
-const clicking = mount({ ...clickOptions, bridgePath: clickDescriptor }, undefined, { sessionController: controller })
-if (controller.openPath === originalOpenPath) throw new Error('a live bridge must wrap the default opener')
+// The session controller belongs to another row and may mount after this plugin applies: the wrap must
+// wait for it. A static stub hid exactly this, which is how the first version shipped wrapping nothing.
+const clicking = mount({ ...clickOptions, bridgePath: clickDescriptor }, undefined, {})
+if (clicking.pending().length === 0) throw new Error('the opener wrap must wait for the session controller')
+if (clicking.warnings.length !== 0) throw new Error('waiting for a service is not a warning')
+clicking.settle({ sessionController: controller })
+if (controller.openPath === originalOpenPath) throw new Error('once the controller appears the opener must be wrapped')
+
 await controller.openPath('/work/a.md', AbortSignal.timeout(2_000))
 if (clicks.length !== 1 || clicks[0].url !== '/open' || clicks[0].authorization !== 'Bearer click-token') {
   throw new Error(`a desktop open must go to the bridge with its token: ${JSON.stringify(clicks)}`)
@@ -449,7 +493,7 @@ if (controller.openPath !== originalOpenPath) throw new Error('disposal must res
 const untouchedOpener = mount({ ...clickOptions, liveBridge: false, openInIde: false }, undefined, { sessionController: controller })
 if (controller.openPath !== originalOpenPath) throw new Error('openInIde: false must not wrap the opener')
 untouchedOpener.disposers.forEach(dispose => dispose())
-await new Promise(resolve => clickServer.close(resolve))
 console.log('a click opens the file in the IDE, falls back to the desktop opener, and is restored on disposal')
+await new Promise(resolve => clickServer.close(resolve))
 
 console.log('\nsynthetic check: discovery, roles, context, stability, and registration all check out')

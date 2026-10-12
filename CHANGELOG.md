@@ -12,6 +12,9 @@ Repository preparation for public release: MIT license, security model, CI, and 
   is live, so both card types land in the IDE without any desktop file-association setup. On by default
   (`openInIde: false` opts out); without a bridge, or when the IDE refuses a path, the original desktop
   opener still runs.
+- The click wrap waits for the session controller with `ctx.inject` instead of reading it at apply time:
+  that service mounts with another row, and the first version silently wrapped nothing because it read a
+  service that did not exist yet.
 
 ## jetbrains-workspace 0.1.2
 
