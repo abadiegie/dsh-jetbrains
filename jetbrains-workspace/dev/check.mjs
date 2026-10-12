@@ -348,7 +348,10 @@ console.log('the runtime context is stable across caret and tab changes')
 
 
 // 5b. The other modes stay available.
-const perProject = mount({ workspaceMode: 'per-project' }, [{ id: 'seed-root', path: '/mnt/media/project/bi-app-v2', sessionIds: [] }])
+// Seeded from the roots this machine's IDE reports now, not from one project by name: this check drives
+// the IDE that happens to be open, and a hard-coded project makes it fail whenever another window is.
+const perProject = mount({ workspaceMode: 'per-project' },
+  liveValue.workspace.roots.filter(root => root.exists).map((root, index) => ({ id: `seed-${index}`, path: root.path, sessionIds: [] })))
 await perProject.tools.find(tool => tool.name === 'jetbrains_workspace').execute({}, exec)
 await new Promise(resolve => setTimeout(resolve, 200))
 const expectedRoots = liveValue.workspace.roots.filter(root => root.exists).map(root => root.path)
