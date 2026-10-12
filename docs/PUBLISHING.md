@@ -18,9 +18,10 @@ What is already in place, and what only you can decide or do.
 1. **Screenshots.** No screenshot is committed on purpose: the ones taken during development show a
    private project. Take fresh ones with a throwaway project and put them in `docs/`, then reference
    them from the READMEs.
-2. **Repository name and URLs.** This repository was prepared as `dsh-jetbrains` under
-   `github.com/abadiegie`. If you choose another name, update `README.md` links (the package metadata
-   carries no repository URL yet).
+2. **Repository name and URLs.** The repository is `github.com/abadiegie/dsh-jetbrains`; the two
+   npm-style packages carry `repository`, `homepage`, and `bugs` pointing at it with their own
+   `directory`. If the name ever changes, update those fields and the clone line in `README.md` — the
+   plugin id and the package names stay as they are.
 3. **DSH compatibility.** State the DSH version you tested in the READMEs (the API surface both halves
    need is listed in the top-level README). `plugin_manager` reports the DSH version of a profile.
 4. **IDE compatibility.** `plugin.xml` declares `since-build="243"` and a dependency on

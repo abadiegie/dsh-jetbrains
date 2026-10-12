@@ -4,10 +4,32 @@
   "private": true,
   "type": "module",
   "description": "Lets a link open a session in the Web UI: a dsh-session parameter in the URL selects that session, so an embedding IDE panel can ask for a session without writing to the client's storage.",
-  "exports": { ".": "./index.js", "./client": "./client.js", "./package.json": "./package.json", "./locale/*.json": "./locale/*.json" },
-  "files": ["index.js", "client.js", "cordis.patch.yml", "README.md", "locale/*.json"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abadiegie/dsh-jetbrains.git",
+    "directory": "jetbrains-session-link"
+  },
+  "homepage": "https://github.com/abadiegie/dsh-jetbrains/tree/main/jetbrains-session-link#readme",
+  "bugs": "https://github.com/abadiegie/dsh-jetbrains/issues",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "locale/*.json"
+  ],
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
-    "client": { "platform": "web" }
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
   }
 }

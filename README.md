@@ -50,6 +50,10 @@ companion never requires the bundle to be installed.
 
 ## Install
 
+```sh
+git clone https://github.com/abadiegie/dsh-jetbrains.git
+```
+
 **1. The IDE plugin** (needs IntelliJ Platform build 243 or newer, with JCEF):
 
 ```sh

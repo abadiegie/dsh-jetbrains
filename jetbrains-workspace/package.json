@@ -6,6 +6,13 @@
   "description": "Reads the current JetBrains IDE workspace (root and attached project directories) into DSH, and opens files in the IDE.",
   "license": "MIT",
   "author": "abadi gilang <gilang@binokular.net>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abadiegie/dsh-jetbrains.git",
+    "directory": "jetbrains-workspace"
+  },
+  "homepage": "https://github.com/abadiegie/dsh-jetbrains/tree/main/jetbrains-workspace#readme",
+  "bugs": "https://github.com/abadiegie/dsh-jetbrains/issues",
   "exports": {
     ".": "./src/plugin.js",
     "./package.json": "./package.json",
