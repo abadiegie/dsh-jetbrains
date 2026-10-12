@@ -4,6 +4,20 @@ A self-contained IntelliJ Platform plugin that links the IDE it runs in to a loc
 process. **It needs no DSH-side plugin**: it authenticates against DSH's own HTTP API with the
 browser-session cookie DSH itself mints, and it creates the sessions.
 
+## The `DSH Changes` tool window
+
+`DSH Changes` lists the turns `dsh-jetbrains-workspace` published — one line per turn, then one per changed
+file — and opens any of them as a **native side-by-side IntelliJ diff**.
+
+The list is read from the review document the bundle writes (`<DSH home>/jetbrains-changes.json`): the
+session, the change-event sequence, and each file. The diff itself comes from DSH, which holds the recorder,
+through `GET /api/changes.diff` with the same signed browser cookie the chat panel authenticates with, and
+the payload's hunks are split into the two texts the platform's diff compares. A file the turn created gets
+an empty left side and says so in the tab title; a deleted file the same on the right.
+
+It needs the bundle mounted and one turn that changed a file; with nothing published yet the panel says so
+instead of showing an empty list. Like every IDE-plugin change, a new build needs an **IDE restart**.
+
 ## What it does
 
 | Behaviour | Detail |

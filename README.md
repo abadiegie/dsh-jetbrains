@@ -9,7 +9,7 @@ Host half and a web-client half, so installing it covers the tool, the context l
 
 | Package | Platform | What it does |
 |---|---|---|
-| [`jetbrains-companion/`](jetbrains-companion) | IntelliJ Platform plugin (Java, no Gradle) | **DSH Chat** tool window embedding DSH's own web client, one DSH session per IDE window, live workspace publication, and a loopback bridge so DSH can put a file in front of you. |
+| [`jetbrains-companion/`](jetbrains-companion) | IntelliJ Platform plugin (Java, no Gradle) | **DSH Chat** tool window embedding DSH's own web client, one DSH session per IDE window, live workspace publication, a loopback bridge so DSH can put a file in front of you, and a `DSH Changes` tool window that shows a published turn as a native side-by-side IntelliJ diff. |
 | [`jetbrains-workspace/`](jetbrains-workspace) | DSH profile bundle (host half + web-client half, plain JavaScript) | Reads the IDE's workspace — including a module's multiple content roots from its `.iml` — into DSH as a tool, a runtime context line, and a registered workspace. Works with the companion running or from the IDE's own state files after it closed. Sends opened and clicked files to the IDE: the Host half replaces DSH's default desktop opener, and the client half redirects the Sidebar file viewer. |
 | [`jetbrains-session-link/`](jetbrains-session-link) | DSH client plugin (plain JavaScript) | Lets `#dsh-session=<id>` — or a hash change on an open page — select that session without a reload. Optional: the chat panel falls back to the client's stored selection when it is absent. |
 
@@ -40,6 +40,7 @@ Each half is useful alone, and they do not depend on each other to install. What
 | Session selected without reloading the page | no — it seeds the client's stored selection and reloads once | — | yes, with `jetbrains-session-link` |
 | Change review of a turn (which files, and their diffs) | — | yes — publishes `<DSH home>/jetbrains-changes.json` with the coordinates DSH's own `/api/changes.*` routes need | yes |
 | A presented artifact opens in the IDE (`present` → editor tab) | — | opt-in — `autoOpenDeliverables: true`, and only for the window's own session | yes (needs the companion bridge) |
+| A turn's changes as a native side-by-side IntelliJ diff | yes — the `DSH Changes` tool window | yes — publishes the document it reads | yes |
 | Clicking a deliverable or changed file opens it in the IDE | — | the wrap is on by default (`openInIde`), but the IDE itself needs the companion's bridge — without one the desktop opener still runs | yes |
 | Clicking a file in the DSH UI opens it in the IDE, not the DSH sidebar viewer | — | yes, on by default (`openSidebarFilesInIde`) — falls back to the sidebar | yes (needs the companion bridge) |
 

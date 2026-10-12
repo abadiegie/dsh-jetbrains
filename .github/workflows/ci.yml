@@ -64,6 +64,20 @@ jobs:
       - name: Plugin descriptor is well-formed XML
         run: python3 -c "import xml.etree.ElementTree as ET; ET.parse('jetbrains-companion/plugin.xml')"
 
+      - name: The changes tool window is registered
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import xml.etree.ElementTree as ET
+          root = ET.parse('jetbrains-companion/plugin.xml').getroot()
+          windows = {window.get('id'): window.get('factoryClass') for window in root.findall('.//toolWindow')}
+          assert 'DSH Changes' in windows, windows
+          factory = windows['DSH Changes']
+          source = pathlib.Path('jetbrains-companion/src') / (factory.replace('.', '/') + '.java')
+          assert source.is_file(), source
+          print('registered:', windows)
+          PY
+
       - name: Plugin descriptor declares the platform and JCEF
         run: |
           python3 - <<'PY'

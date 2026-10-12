@@ -13,6 +13,16 @@ Repository preparation for public release: MIT license, security model, CI, and 
   opener) and a temporary review document, so it passes and no longer writes the real
   `<DSH home>/jetbrains-changes.json`.
 
+## jetbrains-companion 0.2.1
+
+- A `DSH Changes` tool window: the turns `dsh-jetbrains-workspace` publishes, one line per turn and file, with
+  any file opened as a native side-by-side IntelliJ diff. The list comes from the review document, the diff
+  from `GET /api/changes.diff` through the same signed cookie the chat panel uses, and the payload's hunks
+  are split into the two texts the platform compares — an added or removed file says so in the tab title.
+- `dev/ChangesCheck.java` covers both halves without an IDE: the document reader (coordinates, totals, a
+  document from another publisher, a missing one, the location override) and the payload splitter (context,
+  added, and removed lines, the hunk count, and a payload with no display name).
+
 ## jetbrains-workspace 0.1.5
 
 - The review publisher looks for a turn's summary on a schedule instead of once: `workspace/changes` carries

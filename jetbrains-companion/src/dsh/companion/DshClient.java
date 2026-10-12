@@ -2,6 +2,7 @@ package dsh.companion;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -324,6 +325,46 @@ public final class DshClient {
    * @return the cookie, valid for its full lifetime.
    * @throws IOException when the credential document is unreadable or the address is not absolute.
    */
+  /**
+   * Read one GET route from DSH with the signed browser cookie.
+   *
+   * @param route - path and query below {@code /api/}, already encoded.
+   * @return the response body.
+   * @throws IOException when the transport fails or DSH refuses the request.
+   */
+  public String get(String route) throws IOException {
+    HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/api/" + route))
+      .timeout(TIMEOUT)
+      .header("Cookie", cookieHeader)
+      .GET()
+      .build();
+    HttpResponse<String> response;
+    try {
+      response = http.send(request, HttpResponse.BodyHandlers.ofString());
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+      throw new IOException("interrupted while reading " + route, interrupted);
+    }
+    if (response.statusCode() >= 400) {
+      throw new IOException("DSH answered " + response.statusCode() + " for " + route);
+    }
+    return response.body();
+  }
+
+  /**
+   * Read one changed file's diff, the payload DSH's own review tab renders.
+   *
+   * @param sessionId - the session whose turn changed the file.
+   * @param seq - the change event sequence that names the turn.
+   * @param index - the file's position in that turn.
+   * @return the diff, or a payload with empty texts when DSH has no such summary.
+   * @throws IOException when DSH cannot be reached or refuses.
+   */
+  public ChangesDiff changesDiff(String sessionId, long seq, int index) throws IOException {
+    return ChangesDiff.fromPayload(JsonParser.parse(get("changes.diff?sessionId="
+      + URLEncoder.encode(sessionId, StandardCharsets.UTF_8) + "&seq=" + seq + "&index=" + index)));
+  }
+
   public static Cookie mintCookie(String baseUrl, Path dshHome) throws IOException {
     return mintCookie(baseUrl, DshCredentials.browserSessionSecret(dshHome));
   }

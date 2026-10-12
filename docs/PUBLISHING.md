@@ -100,7 +100,7 @@ node dev/check-client.mjs                             # the client half against 
 cd ../jetbrains-session-link && node dev/check.mjs    # the session-link client half
 cd ../jetbrains-companion && ./build.sh               # compiles against your installed IDE
 /usr/share/idea/jbr/bin/javac -cp build/stage -d build/check dev/*.java
-for c in Check ChatCheck UrlCheck dsh.companion.SelectionCheck dsh.companion.SessionCheck dsh.companion.ScopeCheck; do
+for c in Check ChatCheck UrlCheck ChangesCheck dsh.companion.SelectionCheck dsh.companion.SessionCheck dsh.companion.ScopeCheck; do
   /usr/share/idea/jbr/bin/java -cp build/stage:build/check "$c"
 done
 DSH_HOME=<home> /usr/share/idea/jbr/bin/java -cp build/stage:build/check DshCheck
