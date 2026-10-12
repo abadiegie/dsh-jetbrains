@@ -16,6 +16,7 @@ import { discoverWorkspace, discoverWorkspaceSync, defaultConfigRoots, commonPar
 import { readLiveBridge, withLiveBridge, openInIde } from './bridge.js'
 import { publishChanges } from './changes.js'
 import { openPresentedDeliverables } from './deliverables.js'
+import { openDesktopPathsInIde } from './desktop-open.js'
 
 /** Loader entry name. */
 export const name = 'jetbrains-workspace'
@@ -205,6 +206,9 @@ function settingsFrom(config) {
     changes: settings.changes !== false,
     changesPath: optionalString(settings.changesPath, 'changesPath'),
     autoOpenDeliverables: settings.autoOpenDeliverables === true,
+    // Default on: a click in the DSH UI opening the artifact in the IDE is the point of this plugin, and
+    // it costs a user nothing when no IDE is running.
+    openInIde: settings.openInIde !== false,
     contextOrder: optionalPositiveNumber(settings.contextOrder, 'contextOrder') ?? 130,
     contextRootLimit: optionalPositiveInteger(settings.contextRootLimit, 'contextRootLimit') ?? 12,
     cacheTtlMs: optionalPositiveNumber(settings.cacheTtlMs, 'cacheTtlMs') ?? 3_000,
@@ -321,6 +325,9 @@ export function apply(ctx, config) {
       home: settings.home,
       ...settings.changesPath !== undefined ? { changesPath: settings.changesPath } : {},
     }))
+  }
+  if (settings.openInIde) {
+    ctx.effect(() => openDesktopPathsInIde(ctx, { bridgeOptions }))
   }
   if (settings.autoOpenDeliverables) {
     ctx.effect(() => openPresentedDeliverables(ctx, {

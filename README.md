@@ -39,6 +39,7 @@ Each half is useful alone, and they do not depend on each other to install. What
 | Session selected without reloading the page | no — it seeds the client's stored selection and reloads once | — | yes, with `jetbrains-session-link` |
 | Change review of a turn (which files, and their diffs) | — | yes — publishes `<DSH home>/jetbrains-changes.json` with the coordinates DSH's own `/api/changes.*` routes need | yes |
 | A presented artifact opens in the IDE (`present` → editor tab) | — | opt-in — `autoOpenDeliverables: true`, and only for the window's own session | yes (needs the companion bridge) |
+| Clicking a deliverable or changed file opens it in the IDE | — | yes, on by default (`openInIde`) — falls back to the desktop opener | yes (needs the companion bridge) |
 
 So: install the **IDE plugin** to chat with DSH inside your IDE (it needs a DSH running locally, and
 reads DSH's credential document to sign the browser cookie — see [SECURITY.md](SECURITY.md)). Install

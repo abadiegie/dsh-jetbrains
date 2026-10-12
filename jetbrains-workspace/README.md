@@ -44,6 +44,28 @@ changed JavaScript: the Loader resolves a package specifier once, so edits to `s
 the next DSH restart. To load an edit without restarting, install the package under a changed
 `name` in `package.json` (a new specifier resolves to a new module URL) and remove the old bundle.
 
+## Clicking an artifact opens it in the IDE
+
+A click on a deliverable or on a changed file in the DSH UI ends in the Host's
+`sessionController.openWorkspacePath`, whose last step is `this.openPath(path)`. That member is the
+replaceable one — the service assigns it from `SessionControllerInternals` — so this plugin wraps it while
+a companion bridge is live and sends the click to the IDE through the same bridge the
+`jetbrains_open_in_ide` tool uses. Both card types funnel through it, so one wrap covers clicks on
+presented files and on changed files alike.
+
+This is on by default (`openInIde: false` turns it off): a click opening the artifact in the IDE is the
+point of the plugin, and it costs nothing when no IDE is running. When no IDE publishes a bridge the
+original desktop opener runs untouched, and when the IDE refuses a path the plugin falls back to that
+opener rather than letting a click do nothing.
+
+Two limits are worth knowing:
+
+- The shipped handlers refuse with `409 Host desktop unavailable.` *before* the opener is reached when the
+  Host reports no desktop opener at all (a headless Host). This plugin does not change that probe, so it
+  helps only where a click could already open something.
+- Overriding the `present.open` and `changes.open` routes themselves is not possible: `webServer.register`
+  throws on a duplicate path. The opener member is the intended replaceable point.
+
 ## Opening a presented file in the IDE
 
 `present` is how a model declares an artifact — a report, a spreadsheet, a rendered page — as the thing

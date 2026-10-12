@@ -98,7 +98,13 @@ Live diagnosis: the panel forwards its client console to `idea.log` as `dsh-comp
     file by itself unless `jetbrains-workspace` runs with `autoOpenDeliverables: true`, and then only for
     the session whose `cwd` is the IDE window's junction. An override of that row replaces its whole
     `config`, so every key must be restated.
-15. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
+15. **Clicks are routed through one replaceable member.** A click on a deliverable or a changed file
+    ends in `sessionController.openWorkspacePath` → `this.openPath(path)`, assigned from
+    `SessionControllerInternals`; wrapping that member is how `jetbrains-workspace` sends clicks to the IDE
+    (`openInIde`, default on). The shipped handlers refuse with `409 Host desktop unavailable.` before the
+    opener when the Host has no desktop opener, and `webServer.register` throws on a duplicate route, so the
+    `/api/present.open` and `/api/changes.open` routes themselves cannot be overridden.
+16. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
     repository uses `io.github.abadiegie.dsh-companion`.
 
 ## Where the rest is written

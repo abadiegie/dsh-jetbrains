@@ -74,11 +74,14 @@ function mount(config, seed, services = {}) {
   // A mount that names no sink would publish into the real harness home; keep every mount hermetic.
   const sink = { changesPath: join(mkdtempSync(join(tmpdir(), 'dsh-changes-sink-')), 'jetbrains-changes.json') }
   const warnings = []
+  const disposers = []
   const registry = createRegistry(seed)
   const stub = {
     effect: (callback) => {
       const disposer = callback()
-      return typeof disposer === 'function' ? disposer : () => {}
+      const cleanup = typeof disposer === 'function' ? disposer : () => {}
+      disposers.push(cleanup)
+      return cleanup
     },
     tools: { register: (definition) => { tools.push(definition); return () => {} } },
     on: (name, listener, options) => {
@@ -95,7 +98,7 @@ function mount(config, seed, services = {}) {
     },
   }
   apply(stub, { ...sink, ...config })
-  return { tools, prompts, registry, listeners, listenerOptions, warnings }
+  return { tools, prompts, registry, listeners, listenerOptions, warnings, disposers }
 }
 
 /** A companion descriptor whose pid belongs to this process, so its liveness check passes. */
@@ -376,5 +379,77 @@ await new Promise(resolve => setTimeout(resolve, 300))
 if (requests.length !== 2) throw new Error('auto-open must stay off unless the row asks for it')
 await new Promise(resolve => bridge.close(resolve))
 console.log('a presented file opens in the IDE for the window session, and only when the row opts in')
+
+// 9. A click in the DSH UI opens the file in the IDE: the host's replaceable default opener
+//    (`sessionController.openPath`) is wrapped while a companion bridge is live, and the desktop opener
+//    still runs when no IDE answers.
+let refuseClick = false
+const clicks = []
+const clickServer = createServer((request, response) => {
+  let body = ''
+  request.on('data', chunk => { body += chunk })
+  request.on('end', () => {
+    clicks.push({ url: request.url, authorization: request.headers.authorization, body: body === '' ? {} : JSON.parse(body) })
+    if (refuseClick) {
+      response.writeHead(500, { 'Content-Type': 'application/json' })
+      response.end('{"ok":false,"error":"refused"}')
+      return
+    }
+    response.writeHead(200, { 'Content-Type': 'application/json' })
+    response.end('{"ok":true}')
+  })
+})
+await new Promise(resolve => clickServer.listen(0, '127.0.0.1', resolve))
+const clickDescriptor = writeDescriptor({
+  version: 1, source: 'jetbrains-companion', port: clickServer.address().port, token: 'click-token',
+  pid: process.pid,
+  workspace: {
+    product: 'IC', productName: 'IntelliJ IDEA 2099.9', build: 'IC-2099.9',
+    projects: [{ name: 'window', path: project, roots: [project] }],
+    openFiles: [], updatedAt: new Date().toISOString(),
+  },
+})
+
+/** A sessionController stub that records every desktop open it is asked for. */
+const controller = { opens: [], openPath: async (path) => { controller.opens.push(path) } }
+const originalOpenPath = controller.openPath
+const clickOptions = { probe: false, home: fixture, configRoots: [fixture] }
+
+const clicking = mount({ ...clickOptions, bridgePath: clickDescriptor }, undefined, { sessionController: controller })
+if (controller.openPath === originalOpenPath) throw new Error('a live bridge must wrap the default opener')
+await controller.openPath('/work/a.md', AbortSignal.timeout(2_000))
+if (clicks.length !== 1 || clicks[0].url !== '/open' || clicks[0].authorization !== 'Bearer click-token') {
+  throw new Error(`a desktop open must go to the bridge with its token: ${JSON.stringify(clicks)}`)
+}
+if (clicks[0].body.path !== '/work/a.md') throw new Error(`the bridge must be asked for the clicked path: ${JSON.stringify(clicks[0].body)}`)
+if (controller.opens.length !== 0) throw new Error('an IDE open must replace the desktop opener, not duplicate it')
+
+refuseClick = true
+await controller.openPath('/work/b.md', AbortSignal.timeout(2_000))
+if (controller.opens.length !== 1 || controller.opens[0] !== '/work/b.md') {
+  throw new Error('a refused IDE open must fall back to the desktop opener')
+}
+refuseClick = false
+
+// Disposal restores the opener, which the next case depends on: mounts wrap whatever is current, so
+// leaving this one in place would let its bridge answer for the case that must have none.
+clicking.disposers.forEach(dispose => dispose())
+if (controller.openPath !== originalOpenPath) throw new Error('disposal must restore the original opener')
+
+// No IDE publishing a bridge: the desktop opener keeps the click.
+const native = mount({ ...clickOptions, liveBridge: false }, undefined, { sessionController: controller })
+await controller.openPath('/work/c.md', AbortSignal.timeout(2_000))
+if (controller.opens.length !== 2 || controller.opens[1] !== '/work/c.md') {
+  throw new Error(`without a bridge the desktop opener must still run: ${JSON.stringify(controller.opens)}`)
+}
+native.disposers.forEach(dispose => dispose())
+if (controller.openPath !== originalOpenPath) throw new Error('disposal must restore the opener after the unbridged case')
+
+// The opt-out leaves the opener alone.
+const untouchedOpener = mount({ ...clickOptions, liveBridge: false, openInIde: false }, undefined, { sessionController: controller })
+if (controller.openPath !== originalOpenPath) throw new Error('openInIde: false must not wrap the opener')
+untouchedOpener.disposers.forEach(dispose => dispose())
+await new Promise(resolve => clickServer.close(resolve))
+console.log('a click opens the file in the IDE, falls back to the desktop opener, and is restored on disposal')
 
 console.log('\nsynthetic check: discovery, roles, context, stability, and registration all check out')

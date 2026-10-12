@@ -5,6 +5,14 @@
 Repository preparation for public release: MIT license, security model, CI, and package identity
 (`io.github.abadiegie.dsh-companion`, `dsh-jetbrains-workspace`).
 
+## jetbrains-workspace 0.1.3
+
+- Clicking a deliverable or a changed file in the DSH UI opens it in the JetBrains IDE. The plugin replaces
+  `sessionController.openPath` — the member the service itself makes replaceable — while a companion bridge
+  is live, so both card types land in the IDE without any desktop file-association setup. On by default
+  (`openInIde: false` opts out); without a bridge, or when the IDE refuses a path, the original desktop
+  opener still runs.
+
 ## jetbrains-workspace 0.1.2
 
 - `autoOpenDeliverables` (default off) opens the files a session presents in the IDE, through the
