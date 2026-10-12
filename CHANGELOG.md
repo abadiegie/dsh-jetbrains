@@ -5,6 +5,14 @@
 Repository preparation for public release: MIT license, security model, CI, and package identity
 (`io.github.abadiegie.dsh-companion`, `dsh-jetbrains-workspace`).
 
+## jetbrains-workspace 0.1.1
+
+- Publishes `<home>/.dsh/jetbrains-changes.json`: for every announced turn, the `workspace/changes`
+  sequence, the turn number, the totals and each changed file, so an IDE-side panel can render a review
+  with DSH's own `/api/changes.summary` and `/api/changes.diff` routes instead of listening to the
+  session feed. Writes are atomic, bounded to eight sessions, disabled with `changes: false`, and the
+  document is emptied at mount because the recorder keeps nothing across Host restarts.
+
 ## jetbrains-session-link 1.0.0
 
 - A `dsh-session` URL parameter (query or fragment) selects that session, and a hash change does the

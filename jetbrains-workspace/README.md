@@ -44,6 +44,50 @@ changed JavaScript: the Loader resolves a package specifier once, so edits to `s
 the next DSH restart. To load an edit without restarting, install the package under a changed
 `name` in `package.json` (a new specifier resolves to a new module URL) and remove the old bundle.
 
+## The change review document
+
+The Host's change recorder summarizes a turn's changed files, but it keeps them in memory and announces
+each turn with a `workspace/changes` session event whose sequence is the only key that serves the
+summary and the per-file comparison. A panel in another process cannot listen to that feed, so this
+plugin publishes what it needs into
+
+```
+<home>/.dsh/jetbrains-changes.json        # home defaults to the user home, as everywhere else here
+```
+
+A reader treats it as read-only and refreshes it when it changes:
+
+```json
+{
+  "version": 1,
+  "source": "jetbrains-workspace",
+  "updatedAt": "2026-10-12T09:00:00.000Z",
+  "sessions": [
+    {
+      "sessionId": "session-…", "cwd": "/work/project", "seq": 4850, "turn": 33,
+      "total": 1, "added": 35, "deleted": 0, "at": 1760000000000,
+      "files": [{ "path": "docs/A.md", "display": "docs/A.md", "added": 35, "deleted": 0 }]
+    }
+  ]
+}
+```
+
+`seq` is the coordinate a DSH client needs for the rest of the review, which needs no plugin support —
+three authenticated routes already serve it, with the same cookie the IDE plugin signs for its own API
+calls:
+
+```sh
+curl -H "Cookie: $COOKIE" "http://127.0.0.1:3080/api/changes.summary?sessionId=…&seq=4850"
+curl -H "Cookie: $COOKIE" "http://127.0.0.1:3080/api/changes.diff?sessionId=…&seq=4850&index=0"
+```
+
+The summary route answers `404 Change summary unavailable.` for a sequence that is not a change event,
+so a reader must use the published `seq` rather than a session's current position. The recorder keeps
+nothing across restarts: a Host that restarts publishes an empty document and has no comparison for
+turns recorded before it, and this plugin writes that empty document at mount for exactly that reason.
+Each write is atomic (a temporary file renamed over the target), and a failed write is reported and
+otherwise ignored.
+
 ## Configuration
 
 Every field is optional and is validated when the plugin activates.

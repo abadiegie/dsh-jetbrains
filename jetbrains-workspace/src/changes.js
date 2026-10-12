@@ -1,0 +1,140 @@
+/**
+ * Publish the change review an IDE-side reader can render.
+ *
+ * The recorder that summarizes one turn's changed files lives in the Host process and announces each
+ * turn with a `workspace/changes` session event. Its summary is keyed by that event's sequence and
+ * `ctx.workspaceChanges` serves it only while this Host process lives, so a panel in another process
+ * cannot ask for "the changes" without being told which sequence to name. This module writes those
+ * coordinates, and the summary beside them, into a small document the panel reads — the same shape of
+ * hand-off the companion uses when it publishes its descriptor for this plugin to read.
+ *
+ * @module jetbrains-workspace/changes
+ */
+
+import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { dirname, join } from 'node:path'
+
+/** Document version, so a reader can reject a shape it does not know. */
+const VERSION = 1
+
+/** Document source marker, so a reader knows which publisher wrote it. */
+const SOURCE = 'jetbrains-workspace'
+
+/** Sessions kept in the document, newest first. */
+const SESSION_LIMIT = 8
+
+/** The session event a recorder announces one turn's changed files with. */
+const CHANGES_EVENT = 'workspace/changes'
+
+/** One retry for a summary the recorder had not stored when its own event arrived. */
+const RETRY_MILLIS = 200
+
+/**
+ * The document path a deployment publishes to by default.
+ * @param home - harness home whose `.dsh` directory holds the document.
+ * @returns the absolute path.
+ */
+export function defaultChangesPath(home = homedir()) {
+  return join(home, '.dsh', 'jetbrains-changes.json')
+}
+
+/**
+ * Read the identity out of a session passed to a listener.
+ * @param session - the session the event belongs to.
+ * @returns the session id, or undefined when the object is not a session.
+ */
+function sessionIdOf(session) {
+  const id = session?.header?.id ?? session?.id
+  return typeof id === 'string' && id !== '' ? id : undefined
+}
+
+/**
+ * Publish `workspace/changes` summaries for an IDE-side reader.
+ *
+ * The document is rewritten only when its coordinates change and each write is atomic (a temporary
+ * file renamed over the target), so a reader never sees a half-written document. A write that fails is
+ * reported and otherwise ignored: a review is a convenience, not a capability this plugin owes.
+ * @param ctx - the plugin context.
+ * @param options - `changesPath` (default {@link defaultChangesPath}) and `home`.
+ * @returns a disposer that stops listening.
+ */
+export function publishChanges(ctx, options = {}) {
+  const path = options.changesPath ?? defaultChangesPath(options.home ?? homedir())
+  const sessions = new Map()
+  let published
+
+  /** Write the document when its content changed. */
+  const publish = () => {
+    const entries = [...sessions.values()]
+      .sort((left, right) => right.at - left.at)
+      .slice(0, SESSION_LIMIT)
+    const signature = entries.map(entry => `${entry.sessionId}:${entry.seq}`).join(',')
+    if (signature === published) return
+    published = signature
+    const document = {
+      version: VERSION,
+      source: SOURCE,
+      updatedAt: new Date().toISOString(),
+      sessions: entries,
+    }
+    try {
+      mkdirSync(dirname(path), { recursive: true })
+      const temporary = `${path}.tmp`
+      writeFileSync(temporary, `${JSON.stringify(document, null, 2)}\n`)
+      renameSync(temporary, path)
+    } catch (failure) {
+      ctx.logger?.warn?.(`jetbrains-workspace: cannot publish changes to ${path}: ${failure?.message ?? failure}`)
+    }
+  }
+
+  /**
+   * Record the summary one announced event names.
+   * @param session - the session the event belongs to.
+   * @param event - the `workspace/changes` event.
+   * @param attempt - 0 for the first look, 1 for the retry after {@link RETRY_MILLIS}.
+   */
+  const record = (session, event, attempt) => {
+    const id = sessionIdOf(session)
+    if (id === undefined) return
+    const summary = ctx.get('workspaceChanges')?.summary(id, event.seq)
+    if (summary === undefined || summary === null) {
+      // The recorder announces the turn from its own commit path, so one tick can separate the event
+      // from the entry it names; a recorder that never answers is simply not published.
+      if (attempt === 0) ctx.setTimeout(() => record(session, event, 1), RETRY_MILLIS)
+      return
+    }
+    sessions.set(id, {
+      sessionId: id,
+      cwd: typeof session?.header?.cwd === 'string' ? session.header.cwd : null,
+      seq: event.seq,
+      turn: typeof summary.turn === 'number'
+        ? summary.turn
+        : (typeof event.data?.turn === 'number' ? event.data.turn : null),
+      total: summary.total ?? 0,
+      added: summary.added ?? 0,
+      deleted: summary.deleted ?? 0,
+      files: Array.isArray(summary.files)
+        ? summary.files.map(file => ({
+          path: file.path,
+          display: file.display ?? file.path,
+          added: file.added ?? 0,
+          deleted: file.deleted ?? 0,
+        }))
+        : [],
+      at: Date.now(),
+    })
+    publish()
+  }
+
+  // A previous Host's review must not survive this one: the recorder keeps nothing across restarts, so
+  // coordinates written before it would render as if they described the process now running.
+  publish()
+
+  // `{ global: true }` because this plugin runs in the Host plane: every session's review matters
+  // here, not only the one agent a scoped listener would see.
+  return ctx.on('session/event', (session, event) => {
+    if (event?.type !== CHANGES_EVENT) return
+    record(session, event, 0)
+  }, { global: true })
+}

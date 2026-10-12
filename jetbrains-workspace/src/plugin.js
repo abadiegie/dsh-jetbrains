@@ -14,6 +14,7 @@ import { homedir } from 'node:os'
 import { basename } from 'node:path'
 import { discoverWorkspace, discoverWorkspaceSync, defaultConfigRoots, commonParentOf } from './discovery.js'
 import { readLiveBridge, withLiveBridge, openInIde } from './bridge.js'
+import { publishChanges } from './changes.js'
 
 /** Loader entry name. */
 export const name = 'jetbrains-workspace'
@@ -200,6 +201,8 @@ function settingsFrom(config) {
     pruneProjectWorkspaces: settings.pruneProjectWorkspaces === true,
     liveBridge: settings.liveBridge !== false,
     bridgePath: optionalString(settings.bridgePath, 'bridgePath'),
+    changes: settings.changes !== false,
+    changesPath: optionalString(settings.changesPath, 'changesPath'),
     contextOrder: optionalPositiveNumber(settings.contextOrder, 'contextOrder') ?? 130,
     contextRootLimit: optionalPositiveInteger(settings.contextRootLimit, 'contextRootLimit') ?? 12,
     cacheTtlMs: optionalPositiveNumber(settings.cacheTtlMs, 'cacheTtlMs') ?? 3_000,
@@ -310,6 +313,12 @@ export function apply(ctx, config) {
     liveBridge: settings.liveBridge,
     openFileLimit: settings.openFileLimit,
     ...settings.bridgePath !== undefined ? { bridgePath: settings.bridgePath } : {},
+  }
+  if (settings.changes) {
+    ctx.effect(() => publishChanges(ctx, {
+      home: settings.home,
+      ...settings.changesPath !== undefined ? { changesPath: settings.changesPath } : {},
+    }))
   }
   const registerWorkspaces = settings.workspaceMode === 'off'
     ? undefined

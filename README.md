@@ -37,6 +37,7 @@ Each half is useful alone, and they do not depend on each other to install. What
 | `jetbrains_workspace` tool: root project, module content roots, active file, caret, selection | — | yes | yes |
 | `jetbrains_open_in_ide`: the model opens a file in the IDE | — | no — it needs the companion's bridge | yes |
 | Session selected without reloading the page | no — it seeds the client's stored selection and reloads once | — | yes, with `jetbrains-session-link` |
+| Change review of a turn (which files, and their diffs) | — | yes — publishes `<DSH home>/jetbrains-changes.json` with the coordinates DSH's own `/api/changes.*` routes need | yes |
 
 So: install the **IDE plugin** to chat with DSH inside your IDE (it needs a DSH running locally, and
 reads DSH's credential document to sign the browser cookie — see [SECURITY.md](SECURITY.md)). Install

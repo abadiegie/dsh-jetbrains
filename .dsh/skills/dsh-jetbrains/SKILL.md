@@ -75,7 +75,15 @@ Live diagnosis: the panel forwards its client console to `idea.log` as `dsh-comp
 11. **The panel forwards warnings and errors only.** A plugin's `console.info` (a success line, say)
     never reaches `idea.log`, so "no plugin message" proves nothing; log diagnostics with
     `console.warn`, and use `DSH_COMPANION_PROBE` for the page's own view of its link state.
-12. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
+12. **Change review data is keyed by an event sequence, and lives only in memory.** The Host's change
+    recorder announces each turn with a `workspace/changes` session event; only that event's `seq`
+    serves `ctx.workspaceChanges.summary/diff`, and DSH's `/api/changes.summary|diff|open` routes answer
+    `404 Change summary unavailable.` for anything else (a session's current position is not a change
+    event, and `session/page` does not carry these events; `session/follow` needs the stream carrier,
+    not a plain POST). The recorder keeps nothing across restarts, so a reopened conversation has no
+    review for its earlier turns. `jetbrains-workspace` publishes the coordinates to
+    `<home>/.dsh/jetbrains-changes.json` (config `changes`, `changesPath`) for exactly this reason.
+13. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
     repository uses `io.github.abadiegie.dsh-companion`.
 
 ## Where the rest is written

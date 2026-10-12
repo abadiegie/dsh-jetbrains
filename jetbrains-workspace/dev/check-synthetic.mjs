@@ -10,7 +10,7 @@
  * Run: node dev/check-synthetic.mjs
  */
 
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { apply } from '../src/plugin.js'
@@ -64,9 +64,11 @@ function createRegistry(seed = []) {
 }
 
 /** Register one plugin instance against a stub context. */
-function mount(config, seed) {
+function mount(config, seed, services = {}) {
   const tools = []
   const prompts = []
+  const listeners = new Map()
+  const warnings = []
   const registry = createRegistry(seed)
   const stub = {
     effect: (callback) => {
@@ -74,14 +76,20 @@ function mount(config, seed) {
       return typeof disposer === 'function' ? disposer : () => {}
     },
     tools: { register: (definition) => { tools.push(definition); return () => {} } },
+    on: (name, listener) => {
+      listeners.set(name, listener)
+      return () => listeners.delete(name)
+    },
+    setTimeout: (callback, delay) => setTimeout(callback, delay),
+    logger: { warn: (message) => warnings.push(String(message)) },
     get: (name) => {
       if (name === 'systemPrompt') return { context: (entry) => { prompts.push(entry); return () => {} } }
       if (name === 'workspaceRegistry') return registry
-      return undefined
+      return services[name]
     },
   }
   apply(stub, config)
-  return { tools, prompts, registry }
+  return { tools, prompts, registry, listeners, warnings }
 }
 
 /** A companion descriptor whose pid belongs to this process, so its liveness check passes. */
@@ -214,5 +222,71 @@ await refused.tools.find(tool => tool.name === 'jetbrains_workspace').execute({}
 await new Promise(resolve => setTimeout(resolve, 200))
 if (refused.registry.deleted.length !== 0) throw new Error('a common-parent junction pruned a workspace')
 console.log('nothing is deleted by default, and a common-parent junction refuses even when opted in')
+
+// 7. The review document an IDE-side panel reads: coordinates for the change recorder, which lives in
+//    this Host process and keeps nothing across restarts.
+const changesDirectory = mkdtempSync(join(tmpdir(), 'dsh-changes-'))
+const changesPath = join(changesDirectory, 'jetbrains-changes.json')
+const summaries = new Map()
+const changesPlugin = mount(
+  { probe: false, liveBridge: false, home: fixture, configRoots: [fixture], changesPath },
+  undefined,
+  { workspaceChanges: { summary: (session, seq) => summaries.get(`${session}:${seq}`) } })
+
+/** Read the published document. */
+const published = () => JSON.parse(readFileSync(changesPath, 'utf8'))
+if (published().sessions.length !== 0) throw new Error('a fresh mount must publish an empty review')
+if (published().source !== 'jetbrains-workspace' || published().version !== 1) {
+  throw new Error('the document must carry a source marker and a version')
+}
+if (!changesPlugin.listeners.has('session/event')) throw new Error('the publisher must listen to session events')
+
+const sessionA = { header: { id: 'session-a', cwd: '/work/a' } }
+const announce = (session, seq, turn) => changesPlugin.listeners.get('session/event')(session, {
+  type: 'workspace/changes', seq, data: { turn },
+})
+
+// An event whose summary the recorder has not stored yet must not publish a broken entry.
+announce(sessionA, 42, 3)
+await new Promise(resolve => setTimeout(resolve, 320))
+if (published().sessions.length !== 0) throw new Error('an unknown summary must not be published')
+
+summaries.set('session-a:42', {
+  turn: 3, total: 2, added: 12, deleted: 4,
+  files: [
+    { path: 'src/a.js', display: 'src/a.js', added: 10, deleted: 4 },
+    { path: '/tmp/b.md', display: '/tmp/b.md', added: 2, deleted: 0 },
+  ],
+})
+announce(sessionA, 42, 3)
+const first = published().sessions
+if (first.length !== 1) throw new Error(`one announced turn must publish one session, got ${first.length}`)
+if (first[0].seq !== 42 || first[0].turn !== 3 || first[0].cwd !== '/work/a') {
+  throw new Error(`the entry must carry the coordinates: ${JSON.stringify(first[0])}`)
+}
+if (first[0].total !== 2 || first[0].added !== 12 || first[0].deleted !== 4) {
+  throw new Error(`the entry must carry the totals: ${JSON.stringify(first[0])}`)
+}
+if (first[0].files.length !== 2 || first[0].files[1].path !== '/tmp/b.md') {
+  throw new Error(`the entry must carry every changed file: ${JSON.stringify(first[0].files)}`)
+}
+
+// Another session joins, newest first; a later turn of the same session replaces its entry.
+summaries.set('session-b:7', { turn: 1, total: 1, added: 1, deleted: 0, files: [{ path: 'x', display: 'x' }] })
+announce({ header: { id: 'session-b', cwd: '/work/b' } }, 7, 1)
+summaries.set('session-a:43', { turn: 4, total: 1, added: 3, deleted: 1, files: [{ path: 'src/a.js', display: 'src/a.js' }] })
+announce(sessionA, 43, 4)
+const both = published().sessions
+if (both.length !== 2) throw new Error(`two sessions must stay two entries, got ${both.length}`)
+if (both[0].sessionId !== 'session-a' || both[0].seq !== 43) {
+  throw new Error(`the newest turn must replace its session entry: ${JSON.stringify(both.map(entry => entry.sessionId + ':' + entry.seq))}`)
+}
+if (both[1].sessionId !== 'session-b') throw new Error('the other session must stay published')
+
+// Events that are not change announcements are ignored, and no temporary file is left behind.
+changesPlugin.listeners.get('session/event')(sessionA, { type: 'turn/end', seq: 44, data: { turn: 4 } })
+if (published().sessions.length !== 2) throw new Error('a non-change event must not publish')
+if (existsSync(`${changesPath}.tmp`)) throw new Error('the write must leave no temporary file behind')
+console.log('the review document carries each turn\'s coordinates, replaces a session entry, and stays atomic')
 
 console.log('\nsynthetic check: discovery, roles, context, stability, and registration all check out')
