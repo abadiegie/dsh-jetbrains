@@ -72,6 +72,24 @@ About field.
 - **Marketplace.** Requires a real `<version>` bump per release, `<change-notes>`, a plugin icon, and a
   signed artifact. The plugin id above is what a Marketplace listing would keep forever.
 
+## Cutting a release
+
+```sh
+cd jetbrains-companion
+# 1. a real version bump, which the Marketplace requires per upload
+#    plugin.xml <version>, and CHANGELOG.md above it
+# 2. build the jar, install it locally, and produce the upload artifact
+./build.sh          # -> dist/dsh-companion-<version>.zip
+# 3. tag what was released
+git tag -a v<version> -m "dsh-companion <version>" && git push origin v<version>
+```
+
+`dist/` is not committed (see `.gitignore`): the ZIP is a release asset. The Marketplace takes
+`dist/dsh-companion-<version>.zip` as it is and signs it during upload; its form also wants the change notes
+(`plugin.xml` carries them since 0.2.6), the icon (`META-INF/pluginIcon.svg`, in the jar since 0.2.6), and
+the screenshots kept outside this checkout. A GitHub release takes the same ZIP plus
+`dist/dsh-companion.jar` as assets, and the release notes can be the newest `CHANGELOG.md` section.
+
 ## Screenshots for a listing
 
 Screenshots are **not** kept in this repository: they show a local project and its paths, so

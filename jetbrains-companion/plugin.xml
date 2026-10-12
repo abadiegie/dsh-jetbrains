@@ -17,6 +17,16 @@
         <li>Copies the workspace context to the clipboard, and reports its own status.</li>
       </ul>
     ]]></description>
+  <change-notes><![CDATA[
+    <b>0.2.6</b>
+    <ul>
+      <li>A <b>Changes</b> toggle in the chat panel's toolbar shows and hides the changes panel.</li>
+      <li>A turn's diff opens by itself, with a <b>Keep</b> / <b>Revert</b> notification, in the window that owns the workspace.</li>
+      <li>Revert a whole file or a single hunk; a file edited since the turn is refused rather than half-reverted.</li>
+      <li>Turns published while the IDE was closed are mentioned on the next start.</li>
+    </ul>
+  ]]></change-notes>
+
   <idea-version since-build="243" />
   <depends>com.intellij.modules.platform</depends>
   <depends>com.intellij.modules.jcef</depends>

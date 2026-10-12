@@ -36,6 +36,7 @@ echo "build: compiling against $IDE_HOME"
 # shellcheck disable=SC2046 # word splitting is how javac receives the source list
 "$JAVAC" -nowarn --release 21 -cp "$CLASSPATH" -d "$STAGE" $(find "$HERE/src" -name '*.java')
 cp "$HERE/plugin.xml" "$STAGE/META-INF/plugin.xml"
+[ -f "$HERE/META-INF/pluginIcon.svg" ] && cp "$HERE/META-INF/pluginIcon.svg" "$STAGE/META-INF/pluginIcon.svg"
 
 echo "build: packaging $JAR"
 (cd "$STAGE" && jar --create --file "$JAR" .)
@@ -49,3 +50,15 @@ cp "$JAR" "$PLUGIN_DIR/lib/.dsh-companion.jar.new"
 mv -f "$PLUGIN_DIR/lib/.dsh-companion.jar.new" "$PLUGIN_DIR/lib/dsh-companion.jar"
 
 echo "build: done — restart the IDE to load $PLUGIN_DIR"
+
+# A Marketplace upload and an "Install Plugin from Disk" both take this ZIP: one top-level directory holding
+# the plugin's lib/, which is the layout the platform expects.
+VERSION=$(sed -n 's/.*<version>\(.*\)<\/version>.*/\1/p' "$HERE/plugin.xml" | head -1)
+DIST="$HERE/dist/dsh-companion-$VERSION.zip"
+ZIP_ROOT="$HERE/dist/zip"
+rm -rf "$ZIP_ROOT"
+mkdir -p "$ZIP_ROOT/dsh-companion/lib"
+cp "$JAR" "$ZIP_ROOT/dsh-companion/lib/"
+(cd "$ZIP_ROOT" && jar --create --file "$DIST" dsh-companion)
+rm -rf "$ZIP_ROOT"
+echo "build: distribution $DIST ($(du -h "$DIST" | cut -f1))"
