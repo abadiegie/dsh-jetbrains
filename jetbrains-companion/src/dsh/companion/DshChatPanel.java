@@ -39,6 +39,8 @@ import org.cef.handler.CefDisplayHandlerAdapter;
 import org.cef.handler.CefLoadHandler;
 import org.cef.handler.CefLoadHandlerAdapter;
 import org.jetbrains.annotations.NotNull;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowManager;
 
 /**
  * The DSH Chat tool window: DSH's own web client embedded in the IDE through JCEF.
@@ -148,6 +150,16 @@ final class DshChatPanel extends JPanel implements Disposable {
       @Override
       public void actionPerformed(@NotNull AnActionEvent event) {
         showProjectSession();
+      }
+    });
+    group.add(new DumbAwareAction("Changes", "Show or hide the DSH changes panel: each published turn and its diff", AllIcons.Actions.Diff) {
+      @Override
+      public void actionPerformed(@NotNull AnActionEvent event) {
+        ToolWindow window = ToolWindowManager.getInstance(project).getToolWindow(DshDiffToolWindowFactory.TOOL_WINDOW_ID);
+        if (window == null) return;
+        // A toggle: the same button shows and hides the diff panel, so a reader keeps one place to look.
+        if (window.isVisible()) window.hide();
+        else window.show();
       }
     });
     group.add(new Separator());

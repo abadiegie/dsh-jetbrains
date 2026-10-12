@@ -23,6 +23,12 @@ Repository preparation for public release: MIT license, security model, CI, and 
   document from another publisher, a missing one, the location override) and the payload splitter (context,
   added, and removed lines, the hunk count, and a payload with no display name).
 
+## jetbrains-companion 0.2.6
+
+- The chat panel's own toolbar gains a **Changes** toggle, beside Reload, Home and the session actions: it
+  shows the changes panel and hides it again, so the diff is one click away from the browser the reader is
+  already looking at. The panel had a toolbar all along; this is what belongs in it.
+
 ## jetbrains-companion 0.2.5
 
 - The changes panel is reachable from the **Tools** menu (`DSH Changes`), and its tool window moved out of the
