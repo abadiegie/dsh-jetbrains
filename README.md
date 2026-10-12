@@ -33,6 +33,23 @@ Host half and a web-client half, so installing it covers the tool, the context l
 - **Nothing is lost while the IDE is closed.** The review document outlives the IDE: on the next start the
   companion mentions the turns it missed, with one click to the panel.
 
+## Why one DSH, not one per project
+
+Because the value is in seeing everything at once. One Host process holds every session, so a reader can keep
+an agent running in one project under watch while working on something else in another session that has
+nothing to do with the IDE. It is also why this bundle publishes one review document for the whole Host
+rather than one per workspace: the changes panel lists the turns of every session that changed files, so an
+agent left running in another project still reports where the reader already is.
+
+The IDE side leans the same way. One companion serves the whole IDE: the chat panel keeps one session per
+project, the window junction can be told to register the shared parent so a multi-module checkout is one
+workspace (`junctionRoot: common-parent`), and `jetbrains_workspace` answers for every attached directory.
+
+What that costs is worth knowing: the companion descriptor is **one file per user**, so two IDE windows do
+not both publish a bridge — the second overwrites the first, and a Host that has one descriptor can reach one
+window's bridge. Attaching several projects to one window keeps everything working; two windows need a
+descriptor per window and a Host that routes by workspace, which is not built yet.
+
 ## What each half gives you
 
 Each half is useful alone, and they do not depend on each other to install. What you get changes:
