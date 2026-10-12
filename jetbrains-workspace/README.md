@@ -78,6 +78,12 @@ restates the row with the extra key:
 An override replaces the whole `config`, so every key the deployment relies on has to be restated — the
 values above are the ones this repository ships.
 
+Restart the Host after changing this row's config: `patchReload: live` updates the composed config
+immediately, but this plugin declares no `Config` schema, so a setting read at activation (like this one)
+only takes effect when the row is mounted again. Verified: with the composed config saying `true` and the
+running instance started before the change, a presented file opened nothing; after a restart the same
+presentation opened it.
+
 ## The change review document
 
 The Host's change recorder summarizes a turn's changed files, but it keeps them in memory and announces

@@ -86,12 +86,19 @@ Live diagnosis: the panel forwards its client console to `idea.log` as `dsh-comp
     Register the listener in the shape every shipped listener uses — `ctx.on('session/event', (session,
     event) => …)` with **no options**: an unexpected listener option silences the feed instead of
     erroring, and the synthetic check's stub accepts anything, so only a live Host shows it.
-13. **Presented artifacts announce themselves.** `present` appends `deliverables/presented`
+13. **A live config change does not re-run `apply` for a plugin without a `Config` schema.**
+    `patchReload: live` updates the *composed* config — `dsh --profile <p> --dump-config` shows the new
+    value immediately — but this plugin declares no `Config` schema, so a row whose settings were read
+    at activation (for example `autoOpenDeliverables`) keeps the value it started with until the Host
+    restarts. Verified both ways: the composed config said `true` while the running instance had no
+    listener registered, and a `present` opened nothing; after a restart the same `present` opened the
+    file. Tell users to restart the Host after changing this plugin's settings.
+14. **Presented artifacts announce themselves.** `present` appends `deliverables/presented`
     (`{turn, callId, files:[{path,…}]}`), which is the hook for acting on an artifact; nothing opens a
     file by itself unless `jetbrains-workspace` runs with `autoOpenDeliverables: true`, and then only for
     the session whose `cwd` is the IDE window's junction. An override of that row replaces its whole
     `config`, so every key must be restated.
-14. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
+15. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
     repository uses `io.github.abadiegie.dsh-companion`.
 
 ## Where the rest is written
