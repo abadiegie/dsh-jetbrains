@@ -61,10 +61,11 @@ export function openPresentedDeliverables(ctx, options = {}) {
     }
   }
 
+  // Same listener shape as everywhere else in the Harness: an unexpected option can silence the feed.
   return ctx.on('session/event', (session, event) => {
     const paths = presentedPaths(event)
     if (paths.length === 0) return
     if (!belongs(session)) return
     void open(paths)
-  }, { global: true })
+  })
 }

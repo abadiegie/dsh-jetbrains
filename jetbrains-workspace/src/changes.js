@@ -62,6 +62,7 @@ function sessionIdOf(session) {
 export function publishChanges(ctx, options = {}) {
   const path = options.changesPath ?? defaultChangesPath(options.home ?? homedir())
   const sessions = new Map()
+  const warned = new Set()
   let published
 
   /** Write the document when its content changed. */
@@ -96,13 +97,32 @@ export function publishChanges(ctx, options = {}) {
    */
   const record = (session, event, attempt) => {
     const id = sessionIdOf(session)
-    if (id === undefined) return
-    const summary = ctx.get('workspaceChanges')?.summary(id, event.seq)
+    if (id === undefined) {
+      if (!warned.has('session')) {
+        warned.add('session')
+        ctx.logger?.warn?.('jetbrains-workspace: a change event named no session; nothing is published')
+      }
+      return
+    }
+    const recorder = ctx.get('workspaceChanges')
+    if (recorder === undefined) {
+      if (!warned.has('recorder')) {
+        warned.add('recorder')
+        ctx.logger?.warn?.('jetbrains-workspace: no change recorder is mounted in this composition; nothing is published')
+      }
+      return
+    }
+    const summary = recorder.summary(id, event.seq)
     if (summary === undefined || summary === null) {
       // The recorder appends the event first and stores the summary immediately after, so a listener
       // that runs before that statement sees nothing. One retry covers the gap; a recorder that never
       // answers is simply not published.
-      if (attempt === 0) ctx.setTimeout(() => record(session, event, 1), RETRY_MILLIS)
+      if (attempt === 0) {
+        ctx.setTimeout(() => record(session, event, 1), RETRY_MILLIS)
+      } else if (!warned.has(id)) {
+        warned.add(id)
+        ctx.logger?.warn?.(`jetbrains-workspace: the change recorder has no summary for ${id} at ${event.seq}; that turn is not published`)
+      }
       return
     }
     sessions.set(id, {
@@ -136,10 +156,11 @@ export function publishChanges(ctx, options = {}) {
   // coordinates written before it would render as if they described the process now running.
   publish()
 
-  // `{ global: true }` because this plugin runs in the Host plane: every session's review matters
-  // here, not only the one agent a scoped listener would see.
+  // The shape every shipped listener uses (`ctx.on('session/event', (session, event) => …)`, as in
+  // `@deepseek-ai/dsh-compaction` and the SDK server): an extra listener option is not a no-op, and a
+  // wrong one silences the feed instead of erroring.
   return ctx.on('session/event', (session, event) => {
     if (event?.type !== CHANGES_EVENT) return
     record(session, event, 0)
-  }, { global: true })
+  })
 }

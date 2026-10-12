@@ -70,6 +70,7 @@ function mount(config, seed, services = {}) {
   const tools = []
   const prompts = []
   const listeners = new Map()
+  const listenerOptions = new Map()
   // A mount that names no sink would publish into the real harness home; keep every mount hermetic.
   const sink = { changesPath: join(mkdtempSync(join(tmpdir(), 'dsh-changes-sink-')), 'jetbrains-changes.json') }
   const warnings = []
@@ -80,8 +81,9 @@ function mount(config, seed, services = {}) {
       return typeof disposer === 'function' ? disposer : () => {}
     },
     tools: { register: (definition) => { tools.push(definition); return () => {} } },
-    on: (name, listener) => {
+    on: (name, listener, options) => {
       listeners.set(name, listener)
+      listenerOptions.set(name, options)
       return () => listeners.delete(name)
     },
     setTimeout: (callback, delay) => setTimeout(callback, delay),
@@ -93,7 +95,7 @@ function mount(config, seed, services = {}) {
     },
   }
   apply(stub, { ...sink, ...config })
-  return { tools, prompts, registry, listeners, warnings }
+  return { tools, prompts, registry, listeners, listenerOptions, warnings }
 }
 
 /** A companion descriptor whose pid belongs to this process, so its liveness check passes. */
@@ -244,6 +246,16 @@ if (published().source !== 'jetbrains-workspace' || published().version !== 1) {
   throw new Error('the document must carry a source marker and a version')
 }
 if (!changesPlugin.listeners.has('session/event')) throw new Error('the publisher must listen to session events')
+// Listening shape matters: an unexpected listener option silences the feed rather than erroring, which
+// is how this pass first shipped and published nothing while change events kept arriving.
+if (changesPlugin.listenerOptions.get('session/event') !== undefined) {
+  throw new Error('the publisher must register its listener the way the shipped listeners do: no options')
+}
+const recorderless = mount({ probe: false, liveBridge: false, home: fixture, configRoots: [fixture] })
+recorderless.listeners.get('session/event')({ header: { id: 'session-x', cwd: '/w' } }, { type: 'workspace/changes', seq: 1, data: { turn: 1 } })
+if (!recorderless.warnings.some(warning => warning.includes('no change recorder'))) {
+  throw new Error('a composition without a change recorder must say so instead of staying silent')
+}
 
 const sessionA = { header: { id: 'session-a', cwd: '/work/a' } }
 const announce = (session, seq, turn) => changesPlugin.listeners.get('session/event')(session, {
@@ -254,6 +266,9 @@ const announce = (session, seq, turn) => changesPlugin.listeners.get('session/ev
 announce(sessionA, 42, 3)
 await new Promise(resolve => setTimeout(resolve, 320))
 if (published().sessions.length !== 0) throw new Error('an unknown summary must not be published')
+if (!changesPlugin.warnings.some(warning => warning.includes('has no summary'))) {
+  throw new Error('a summary that never arrives must be reported, not silently dropped')
+}
 
 summaries.set('session-a:42', {
   turn: 3, total: 2, added: 12, deleted: 4,
@@ -334,6 +349,9 @@ const announceDelivery = (session, paths) => deliver.listeners.get('session/even
   type: 'deliverables/presented', seq: 90, data: { turn: 2, files: paths.map(path => ({ path })) },
 })
 
+if (deliver.listenerOptions.get('session/event') !== undefined) {
+  throw new Error('the auto-open listener must register without options too')
+}
 announceDelivery({ header: { id: 'session-window', cwd: project } }, ['/tmp/report.pdf', '/tmp/table.xlsx'])
 await new Promise(resolve => setTimeout(resolve, 300))
 if (requests.length !== 2) throw new Error(`the window's session must open both presented files, got ${requests.length}`)

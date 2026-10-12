@@ -83,6 +83,9 @@ Live diagnosis: the panel forwards its client console to `idea.log` as `dsh-comp
     not a plain POST). The recorder keeps nothing across restarts, so a reopened conversation has no
     review for its earlier turns. `jetbrains-workspace` publishes the coordinates to
     `<home>/.dsh/jetbrains-changes.json` (config `changes`, `changesPath`) for exactly this reason.
+    Register the listener in the shape every shipped listener uses — `ctx.on('session/event', (session,
+    event) => …)` with **no options**: an unexpected listener option silences the feed instead of
+    erroring, and the synthetic check's stub accepts anything, so only a live Host shows it.
 13. **Presented artifacts announce themselves.** `present` appends `deliverables/presented`
     (`{turn, callId, files:[{path,…}]}`), which is the hook for acting on an artifact; nothing opens a
     file by itself unless `jetbrains-workspace` runs with `autoOpenDeliverables: true`, and then only for

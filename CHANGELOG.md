@@ -11,6 +11,10 @@ Repository preparation for public release: MIT license, security model, CI, and 
   companion bridge, at the moment DSH appends its `deliverables/presented` event. Only the session the
   IDE window owns is served, presented files may live anywhere, and a refused or unanswerable bridge is
   logged rather than thrown.
+- The change-review publisher and the auto-open listener register the way every shipped listener does:
+  no listener options. An extra option silenced the feed rather than erroring, which the synthetic
+  check could not see because its stub accepts anything; a composition with no change recorder, and a
+  summary that never arrives, now warn instead of failing silently.
 
 ## jetbrains-workspace 0.1.1
 
