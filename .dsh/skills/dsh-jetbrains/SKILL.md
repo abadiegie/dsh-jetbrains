@@ -104,7 +104,14 @@ Live diagnosis: the panel forwards its client console to `idea.log` as `dsh-comp
     (`openInIde`, default on). The shipped handlers refuse with `409 Host desktop unavailable.` before the
     opener when the Host has no desktop opener, and `webServer.register` throws on a duplicate route, so the
     `/api/present.open` and `/api/changes.open` routes themselves cannot be overridden.
-16. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
+16. **A file click never reaches the Host.** DSH opens files through the client service
+    `ctx.sidebarRight.openResource('dsh-resource://file/…')` (`ui-chat/src/client/apply.ts`), so a Host-side
+    opener cannot see it: the fix is a client half that wraps that service and asks a Host route
+    (`jetbrains-workspace` does exactly this, `openSidebarFilesInIde`). The address grammar is
+    `dsh-resource://file/session/<sessionId>/<path>` or `.../absolute/<path>`, component-encoded with `:`
+    literal; a line travels in the options, not the address. A client half reaches an open page through the
+    module loader, so the first page after it ships needs a reload.
+17. **`domain.local` plugin ids are a smell.** The plugin id is permanent once published; this
     repository uses `io.github.abadiegie.dsh-companion`.
 
 ## Where the rest is written

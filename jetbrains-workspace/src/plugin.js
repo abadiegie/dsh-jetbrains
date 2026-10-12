@@ -17,6 +17,7 @@ import { readLiveBridge, withLiveBridge, openInIde } from './bridge.js'
 import { publishChanges } from './changes.js'
 import { openPresentedDeliverables } from './deliverables.js'
 import { openDesktopPathsInIde } from './desktop-open.js'
+import { registerOpenRoute } from './open-route.js'
 
 /** Loader entry name. */
 export const name = 'jetbrains-workspace'
@@ -209,6 +210,9 @@ function settingsFrom(config) {
     // Default on: a click in the DSH UI opening the artifact in the IDE is the point of this plugin, and
     // it costs a user nothing when no IDE is running.
     openInIde: settings.openInIde !== false,
+    // Answers the client half when a click asks for a file: the same intent as openInIde, for the sidebar
+    // viewer DSH would otherwise open.
+    openSidebarFilesInIde: settings.openSidebarFilesInIde !== false,
     contextOrder: optionalPositiveNumber(settings.contextOrder, 'contextOrder') ?? 130,
     contextRootLimit: optionalPositiveInteger(settings.contextRootLimit, 'contextRootLimit') ?? 12,
     cacheTtlMs: optionalPositiveNumber(settings.cacheTtlMs, 'cacheTtlMs') ?? 3_000,
@@ -329,6 +333,7 @@ export function apply(ctx, config) {
   // `ctx.inject` inside owns the lifecycle: the wrap waits for the session controller and is undone with
   // this plugin, so no outer effect is needed.
   if (settings.openInIde) openDesktopPathsInIde(ctx, { bridgeOptions })
+  if (settings.openSidebarFilesInIde) registerOpenRoute(ctx, { bridgeOptions })
   if (settings.autoOpenDeliverables) {
     ctx.effect(() => openPresentedDeliverables(ctx, {
       bridgeOptions,

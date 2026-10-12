@@ -20,10 +20,13 @@ jobs:
 
       - name: Syntax check every module
         run: |
-          for file in src/*.js dev/*.mjs; do node --check "$file"; done
+          for file in src/*.js client.js dev/*.mjs; do node --check "$file"; done
 
       - name: Synthetic check (no IDE, no DSH, no desktop)
         run: node dev/check-synthetic.mjs
+
+      - name: Client half against a fake page
+        run: node dev/check-client.mjs
 
       - name: Manifest is valid JSON
         run: node -e "JSON.parse(require('node:fs').readFileSync('package.json','utf8'))"

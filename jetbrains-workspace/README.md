@@ -44,6 +44,32 @@ changed JavaScript: the Loader resolves a package specifier once, so edits to `s
 the next DSH restart. To load an edit without restarting, install the package under a changed
 `name` in `package.json` (a new specifier resolves to a new module URL) and remove the old bundle.
 
+## Clicking a file opens it in the IDE
+
+DSH's own click behaviour for a file is its Sidebar viewer: `ui-chat` opens a file through
+`ctx.sidebarRight.openResource(address)`, and the shipped locale says so ("Open the whole file in the
+sidebar"). That call never reaches the Host, so no Host-side opener can redirect it — wrapping that client
+service is the one place it can be redirected without touching another plugin's DOM.
+
+So this package also ships a **client half** (`./client`, declared as `dsh.client`). It wraps
+`sidebarRight.openResource` and, for the two file address scopes of the resource grammar
+(`dsh-resource://file/session/<sessionId>/<path>` and `dsh-resource://file/absolute/<path>`), asks the Host
+route `POST /api/jetbrains.open`. The route resolves a session-relative path through the Host filesystem,
+hands the absolute path (with its line, when the click carried one) to the companion bridge, and answers
+`204`. Everything else keeps its old behaviour:
+
+| Answer | What the click does |
+|---|---|
+| `204` | the file opens in the IDE, and the Sidebar stays closed |
+| `409` | no IDE publishes a bridge → the Sidebar viewer opens the file |
+| `404` | this deployment does not register the route (`openSidebarFilesInIde: false`) → the Sidebar |
+| anything else, or a failed request | the Sidebar |
+
+Turning it off is the same one key (`openSidebarFilesInIde: false`), and the route is then simply not
+registered, which the client reads as "not ours". Like every other setting here, it takes effect when the
+row is mounted again, so restart the Host after changing it. The client half reaches an already-open page
+through the module loader; a page that loaded before the package shipped needs a reload.
+
 ## Clicking an artifact opens it in the IDE
 
 A click on a deliverable or on a changed file in the DSH UI ends in the Host's

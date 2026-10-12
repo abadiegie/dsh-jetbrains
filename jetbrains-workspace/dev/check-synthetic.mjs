@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { apply } from '../src/plugin.js'
 import { presentedPaths } from '../src/deliverables.js'
+import { OPEN_ROUTE_PATH } from '../src/open-route.js'
 
 // The Harness' own validators are optional, so this check runs without a DSH installation.
 const HARNESS = process.env.DSH_HARNESS_ROOT ?? '/mnt/media/project/deepseek-harness'
@@ -494,6 +495,67 @@ const untouchedOpener = mount({ ...clickOptions, liveBridge: false, openInIde: f
 if (controller.openPath !== originalOpenPath) throw new Error('openInIde: false must not wrap the opener')
 untouchedOpener.disposers.forEach(dispose => dispose())
 console.log('a click opens the file in the IDE, falls back to the desktop opener, and is restored on disposal')
+// 10. The route the client half asks: it resolves a session-relative path through the Host filesystem and
+//     hands the absolute path to the bridge, and it declines — so the Sidebar keeps the click — whenever it
+//     cannot serve the request.
+const routes = []
+const statCalls = []
+const routeServices = {
+  webServer: { register: (route) => { routes.push(route); return () => {} } },
+  sessions: { list: () => [{ header: { id: 'session-ab', cwd: project } }] },
+  workspaceFiles: {
+    stat: async (scope, path) => {
+      statCalls.push({ scope, path })
+      return { absolutePath: join(project, path) }
+    },
+  },
+}
+const routed = mount({ ...clickOptions, bridgePath: clickDescriptor }, undefined, routeServices)
+const route = routes.find(entry => entry.path === OPEN_ROUTE_PATH)
+if (route === undefined) throw new Error(`the open route must be registered at ${OPEN_ROUTE_PATH}`)
+if (!route.methods.includes('POST')) throw new Error('the open route serves POST')
+
+/** Call the registered route the way the client half does. */
+const callRoute = async (body) => route.handler(new Request(`http://127.0.0.1:3080${OPEN_ROUTE_PATH}`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify(body),
+}))
+
+const served = await callRoute({ sessionId: 'session-ab', path: 'notes/plan.md', line: 12 })
+if (served.status !== 204) throw new Error(`an in-workspace file must open in the IDE, got ${served.status}`)
+const lastSent = clicks[clicks.length - 1]
+if (lastSent.body.path !== join(project, 'notes/plan.md') || lastSent.body.line !== 12) {
+  throw new Error(`the bridge must be asked for the resolved absolute path and its line: ${JSON.stringify(lastSent.body)}`)
+}
+if (statCalls.length !== 1 || statCalls[0].scope.workspaceRoot !== project || statCalls[0].path !== 'notes/plan.md') {
+  throw new Error(`the session workspace root must resolve the path: ${JSON.stringify(statCalls)}`)
+}
+
+const absolute = await callRoute({ path: '/tmp/report final.pdf' })
+if (absolute.status !== 204) throw new Error('an absolute path must open without a session')
+if (statCalls.length !== 1) throw new Error('an absolute path must not be resolved against a session')
+if (clicks[clicks.length - 1].body.path !== '/tmp/report final.pdf') {
+  throw new Error(`an absolute path must travel as written: ${clicks[clicks.length - 1].body.path}`)
+}
+
+if ((await callRoute({})).status !== 400) throw new Error('a request without a path must be refused')
+refuseClick = true
+if ((await callRoute({ path: '/tmp/refused.md' })).status !== 502) throw new Error('an IDE refusal must be reported, not swallowed')
+refuseClick = false
+routed.disposers.forEach(dispose => dispose())
+
+// Without a bridge the route declines with 409, which is what keeps a click in the Sidebar.
+routes.length = 0
+const unrouted = mount({ ...clickOptions, liveBridge: false }, undefined, routeServices)
+const declining = routes.find(entry => entry.path === OPEN_ROUTE_PATH)
+const declined = await declining.handler(new Request(`http://127.0.0.1:3080${OPEN_ROUTE_PATH}`, {
+  method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: '/tmp/any.md' }),
+}))
+if (declined.status !== 409) throw new Error(`without a bridge the route must decline with 409, got ${declined.status}`)
+unrouted.disposers.forEach(dispose => dispose())
+console.log('the open route resolves a session path, opens it in the IDE, and declines when it cannot')
+
 await new Promise(resolve => clickServer.close(resolve))
 
 console.log('\nsynthetic check: discovery, roles, context, stability, and registration all check out')

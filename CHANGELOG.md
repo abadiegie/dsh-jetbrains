@@ -5,6 +5,17 @@
 Repository preparation for public release: MIT license, security model, CI, and package identity
 (`io.github.abadiegie.dsh-companion`, `dsh-jetbrains-workspace`).
 
+## jetbrains-workspace 0.1.4
+
+- Clicking a file in the DSH UI opens it in the IDE instead of the Sidebar viewer. DSH opens files through
+  the client service `sidebarRight.openResource`, which never reaches the Host, so the package now carries a
+  client half that wraps it: a `dsh-resource://file/…` address goes to the new Host route
+  `POST /api/jetbrains.open`, which resolves a session-relative path and hands it to the companion bridge.
+  On by default (`openSidebarFilesInIde: false` disables it by not registering the route); a `409`, a
+  `404`, any other failure, or any non-file address keeps the Sidebar behaviour, so a click always opens
+  somewhere. The client half needs a page reload the first time it ships, and a Host restart to register
+  the route.
+
 ## jetbrains-workspace 0.1.3
 
 - Clicking a deliverable or a changed file in the DSH UI opens it in the JetBrains IDE. The plugin replaces

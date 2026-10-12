@@ -1,6 +1,6 @@
 {
   "name": "dsh-jetbrains-workspace",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "type": "module",
   "description": "Reads the current JetBrains IDE workspace (root and attached project directories) into DSH, and opens files in the IDE.",
@@ -15,11 +15,13 @@
   "bugs": "https://github.com/abadiegie/dsh-jetbrains/issues",
   "exports": {
     ".": "./src/plugin.js",
+    "./client": "./client.js",
     "./package.json": "./package.json",
     "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "src/*.js",
+    "client.js",
     "cordis.patch.yml",
     "README.md",
     "locale/*.json"
@@ -27,6 +29,9 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
     }
   }
 }
