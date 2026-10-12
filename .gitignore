@@ -11,3 +11,7 @@ node_modules/
 .vscode/
 .DS_Store
 Thumbs.db
+# Screenshots are personal captures: they show a local project, so they never enter the repository.
+docs/screenshots/
+screenshots/
+*.shot.png
