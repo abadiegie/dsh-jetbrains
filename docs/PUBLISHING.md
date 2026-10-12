@@ -34,6 +34,25 @@ What is already in place, and what only you can decide or do.
 - **Marketplace.** Requires a real `<version>` bump per release, `<change-notes>`, a plugin icon, and a
   signed artifact. The plugin id above is what a Marketplace listing would keep forever.
 
+## Release the two artifacts
+
+They version independently and neither installs the other.
+
+| Artifact | Built by | Where it goes | Notes |
+|---|---|---|---|
+| `jetbrains-companion` | `jetbrains-companion/build.sh` → `dist/dsh-companion.jar` | GitHub release asset; JetBrains Marketplace once the listing requirements are met | The Marketplace needs a real `<version>` bump per release, `<change-notes>`, a plugin icon, and a signed artifact. Users can also build it from source with no Gradle. |
+| `jetbrains-workspace` | nothing to build — plain ESM | the repository directory itself (install with `plugin_manager install_bundle`); npm later if you want | It is not a JetBrains artifact, so the Marketplace cannot carry it. Tag both halves in one release and say which version of each works together. |
+
+The contract between them is DSH's own HTTP API plus the companion descriptor
+(`<DSH home>/jetbrains-companion.json`, with a `version` and a `source` marker). A mismatch is a clear
+refusal — a bundle without a live descriptor reads the IDE state files, and an `open_in_ide` call with no
+bridge names the missing companion — so a user can update one half ahead of the other.
+
+A third, optional package is not in this repository: `dsh-jetbrains-session-link`, a DSH *client* plugin
+that lets a URL or a hash change select a session without a page reload. The panel does not require it —
+without it the session is selected through the client's stored record and one reload — so it can ship
+later, on its own.
+
 ## Verification before tagging
 
 ```sh

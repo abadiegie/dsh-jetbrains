@@ -23,6 +23,29 @@ They are independent halves of one workflow, and each works on its own:
 - **Round trip.** DSH can read the active file, caret and selection, and open a file in the IDE at a
   line — with the companion's bridge, or with the IDE state files when the IDE is closed.
 
+## What each half gives you
+
+Each half is useful alone, and they do not depend on each other to install. What you get changes:
+
+| Capability | IDE plugin only | DSH bundle only | Both |
+|---|---|---|---|
+| `DSH Chat` tool window in the IDE (embedded DSH client, cookie auth) | yes | — | yes |
+| One DSH session per IDE window, grouped in the DSH sidebar | yes — the panel registers the workspace and creates or attaches the session itself | — | yes |
+| The model knows which IDE window is open (runtime context line) | — | yes, from the IDE's state files, or live when the companion runs | yes |
+| `jetbrains_workspace` tool: root project, module content roots, active file, caret, selection | — | yes | yes |
+| `jetbrains_open_in_ide`: the model opens a file in the IDE | — | no — it needs the companion's bridge | yes |
+| Session selected without reloading the page | no — it seeds the client's stored selection and reloads once | — | yes, with the optional `dsh-jetbrains-session-link` client plugin |
+
+So: install the **IDE plugin** to chat with DSH inside your IDE (it needs a DSH running locally, and
+reads DSH's credential document to sign the browser cookie — see [SECURITY.md](SECURITY.md)). Install
+the **DSH bundle** to put your IDE workspace in front of the model. Install **both** for the round
+trip, where the model can name the file you are editing and open another one for you.
+
+The two halves talk through DSH's own HTTP API and the companion's descriptor
+(`<DSH home>/jetbrains-companion.json`, carrying a `version` and a `source` marker), so either half can
+be updated on its own: a bundle that finds no live descriptor falls back to the IDE's state files, and a
+companion never requires the bundle to be installed.
+
 ## Install
 
 **1. The IDE plugin** (needs IntelliJ Platform build 243 or newer, with JCEF):
@@ -33,7 +56,8 @@ cd jetbrains-companion
 IDE_HOME=/path/to/idea ./build.sh
 ```
 
-Then restart the IDE. Settings live under `Settings ▸ Tools ▸ DSH Companion`.
+Then restart the IDE. Settings live under `Settings ▸ Tools ▸ DSH Companion`. Step 1 needs no DSH-side
+plugin; installing it alone gives you the chat panel (see the table above).
 
 **2. The DSH bundle** (needs a DSH profile):
 
@@ -42,7 +66,9 @@ Then restart the IDE. Settings live under `Settings ▸ Tools ▸ DSH Companion`
 plugin_manager install_bundle /absolute/path/to/jetbrains-workspace
 ```
 
-Then restart DSH. `jetbrains_workspace` and `jetbrains_open_in_ide` become available to the agent.
+Then restart DSH. `jetbrains_workspace` and `jetbrains_open_in_ide` become available to the agent; step
+2 needs no IDE plugin, because the bundle reads the IDE's state files when no companion is publishing a
+descriptor. For the round trip — the model naming your active file and opening another — install both.
 
 ## Documentation
 
