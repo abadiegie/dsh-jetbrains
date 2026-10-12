@@ -53,6 +53,10 @@ public final class Check {
         OPENED.add(path + ":" + line + ":" + column);
         return null;
       }
+      @Override
+      public String changed(String body) {
+        return null;
+      }
     }, token)) {
       Path descriptor = Path.of(System.getProperty("java.io.tmpdir"), "dsh-companion-check.json");
       Files.deleteIfExists(descriptor);
