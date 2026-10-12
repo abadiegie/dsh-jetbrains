@@ -26,6 +26,13 @@ Host half and a web-client half, so installing it covers the tool, the context l
 - **Round trip.** DSH can read the active file, caret and selection, and open a file in the IDE at a
   line — with the companion's bridge, or with the IDE state files when the IDE is closed.
 
+- **Review a turn as a diff.** `DSH Changes` lists every turn `dsh-jetbrains-workspace` publishes and
+  opens any changed file as a native side-by-side IntelliJ diff. A turn's diff also opens by itself, with a
+  **Keep** / **Revert** notification, the chat panel's toolbar has a **Changes** toggle, and reverting works
+  per file or per hunk — refusing rather than half-reverting a file that changed since the turn.
+- **Nothing is lost while the IDE is closed.** The review document outlives the IDE: on the next start the
+  companion mentions the turns it missed, with one click to the panel.
+
 ## What each half gives you
 
 Each half is useful alone, and they do not depend on each other to install. What you get changes:
@@ -41,6 +48,9 @@ Each half is useful alone, and they do not depend on each other to install. What
 | Change review of a turn (which files, and their diffs) | — | yes — publishes `<DSH home>/jetbrains-changes.json` with the coordinates DSH's own `/api/changes.*` routes need | yes |
 | A presented artifact opens in the IDE (`present` → editor tab) | — | opt-in — `autoOpenDeliverables: true`, and only for the window's own session | yes (needs the companion bridge) |
 | A turn's changes as a native side-by-side IntelliJ diff | yes — the `DSH Changes` tool window | yes — publishes the document it reads | yes |
+| A turn's diff opens by itself, with Keep / Revert | yes — `POST /changed` on the companion bridge | yes — posts the notice (`autoOpenDiffs`) | yes |
+| Revert a file, or one hunk of it | yes — the panel and the notification action | — | yes |
+| Turns published while the IDE was closed | yes — mentioned on the next start | yes — the document outlives the IDE | yes |
 | Clicking a deliverable or changed file opens it in the IDE | — | the wrap is on by default (`openInIde`), but the IDE itself needs the companion's bridge — without one the desktop opener still runs | yes |
 | Clicking a file in the DSH UI opens it in the IDE, not the DSH sidebar viewer | — | yes, on by default (`openSidebarFilesInIde`) — falls back to the sidebar | yes (needs the companion bridge) |
 
