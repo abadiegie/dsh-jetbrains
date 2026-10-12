@@ -23,6 +23,15 @@ Repository preparation for public release: MIT license, security model, CI, and 
   document from another publisher, a missing one, the location override) and the payload splitter (context,
   added, and removed lines, the hunk count, and a payload with no display name).
 
+## jetbrains-companion 0.2.4
+
+- Revert one hunk at a time: once a file's diff has been opened, its hunks appear as rows under it and the
+  panel's Revert action takes back just the selected one. A file the turn created is refused per hunk — its
+  whole-file revert deletes it — and nothing about the whole-file path changed.
+- Turns published while the IDE was closed are mentioned when it next opens: the companion reads the review
+  document at start, compares it against a watermark it keeps in its own settings, and shows one notification
+  with a `Show changes` action that opens the panel. History was never lost; being told was what was missing.
+
 ## jetbrains-companion 0.2.3
 
 - The diff opens by itself: when a turn publishes its changes, `jetbrains-workspace` posts a notice to the

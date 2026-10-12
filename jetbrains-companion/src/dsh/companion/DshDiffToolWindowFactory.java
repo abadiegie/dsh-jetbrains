@@ -56,12 +56,25 @@ public final class DshDiffToolWindowFactory implements ToolWindowFactory, DumbAw
   }
 }
 
-/** One turn header, or one of its files. */
-record DiffRow(DshChanges.Turn turn, DshChanges.ChangedFile file, int index) {
+/**
+ * One row: a turn header, one of its files, or one hunk of a file whose diff has been opened.
+ *
+ * @param turn - the turn it belongs to.
+ * @param file - the changed file, or null for a turn header.
+ * @param index - the file's position in the turn.
+ * @param block - the hunk's position in that file's diff, or -1 for a turn or file row.
+ */
+record DiffRow(DshChanges.Turn turn, DshChanges.ChangedFile file, int index, int block) {
   @Override
   public String toString() {
     if (file == null) return turn.label();
+    if (block >= 0) return "        hunk " + (block + 1);
     return "    " + file.display() + "   +" + file.added() + "/-" + file.deleted();
+  }
+
+  /** @return the key one file's fetched diff is cached under. */
+  String key() {
+    return turn.sessionId() + ":" + turn.seq() + ":" + index;
   }
 }
 
@@ -71,6 +84,9 @@ final class DshDiffPanel extends JPanel implements Disposable {
   private final DefaultListModel<DiffRow> model = new DefaultListModel<>();
   private final JBList<DiffRow> list = new JBList<>(model);
   private final JLabel status = new JLabel("Reading the review document…");
+  /** Diffs opened in this session, so a file's hunks can be reverted one by one without asking again. */
+  private final java.util.Map<String, ChangesDiff> fetched = new java.util.HashMap<>();
+  private List<DshChanges.Turn> shown = List.of();
 
   DshDiffPanel(Project project) {
     super(new BorderLayout());
@@ -126,13 +142,22 @@ final class DshDiffPanel extends JPanel implements Disposable {
    * @param document - where they came from, named in the status line.
    */
   private void fill(List<DshChanges.Turn> turns, Path document) {
+    shown = turns;
     model.clear();
     int files = 0;
     for (DshChanges.Turn turn : turns) {
-      model.addElement(new DiffRow(turn, null, -1));
+      model.addElement(new DiffRow(turn, null, -1, -1));
       for (int index = 0; index < turn.files().size(); index += 1) {
-        model.addElement(new DiffRow(turn, turn.files().get(index), index));
+        DiffRow fileRow = new DiffRow(turn, turn.files().get(index), index, -1);
+        model.addElement(fileRow);
         files += 1;
+        // A file whose diff has been opened shows its hunks, so each can be taken back on its own.
+        ChangesDiff cached = fetched.get(fileRow.key());
+        if (cached != null) {
+          for (ChangesDiff.Block block : cached.blocks()) {
+            model.addElement(new DiffRow(turn, fileRow.file(), index, block.index()));
+          }
+        }
       }
     }
     status.setText(turns.isEmpty()
@@ -154,7 +179,11 @@ final class DshDiffPanel extends JPanel implements Disposable {
         DshCompanionSettings.State settings = DshCompanionSettings.getInstance().state();
         DshClient client = DshClient.locate(DshSessions.candidateUrls(settings), DshSessions.candidateHomes(settings));
         ChangesDiff diff = client.changesDiff(row.turn().sessionId(), row.turn().seq(), row.index());
-        ApplicationManager.getApplication().invokeLater(() -> show(diff, row.turn()));
+        ApplicationManager.getApplication().invokeLater(() -> {
+          fetched.put(row.key(), diff);
+          show(diff, row.turn());
+          fill(shown, DshChanges.path());
+        });
       } catch (IOException failure) {
         ApplicationManager.getApplication().invokeLater(() ->
           status.setText("Cannot read that diff: " + failure.getMessage()));
@@ -174,8 +203,11 @@ final class DshDiffPanel extends JPanel implements Disposable {
     }
     DshChanges.Turn turn = row.turn();
     String name = row.file().display();
-    if (Messages.showYesNoDialog(project, "Take back this turn's change to " + name + "?",
-      "DSH Changes", Messages.getQuestionIcon()) != Messages.YES) {
+    boolean oneHunk = row.block() >= 0;
+    String question = oneHunk
+      ? "Take back hunk " + (row.block() + 1) + " of " + name + "?"
+      : "Take back this turn's change to " + name + "?";
+    if (Messages.showYesNoDialog(project, question, "DSH Changes", Messages.getQuestionIcon()) != Messages.YES) {
       return;
     }
     status.setText("Reverting " + name + "…");
@@ -183,16 +215,27 @@ final class DshDiffPanel extends JPanel implements Disposable {
       try {
         DshCompanionSettings.State settings = DshCompanionSettings.getInstance().state();
         DshClient client = DshClient.locate(DshSessions.candidateUrls(settings), DshSessions.candidateHomes(settings));
-        ChangesDiff diff = client.changesDiff(turn.sessionId(), turn.seq(), row.index());
+        ChangesDiff diff = row.block() >= 0 ? fetched.get(row.key()) : client.changesDiff(turn.sessionId(), turn.seq(), row.index());
+        if (diff == null) {
+          ApplicationManager.getApplication().invokeLater(() ->
+            status.setText("Open that file's diff first, then its hunks can be reverted one by one."));
+          return;
+        }
+        fetched.put(row.key(), diff);
         Path file = Path.of(turn.cwd() == null ? "" : turn.cwd(), row.file().path());
         String outcome;
+        if (oneHunk && diff.isCreation()) {
+          ApplicationManager.getApplication().invokeLater(() ->
+            status.setText(name + " was created by this turn; revert the whole file instead."));
+          return;
+        }
         if (diff.isCreation()) {
           Files.deleteIfExists(file);
           outcome = "Deleted " + name + ", which this turn created.";
         } else {
-          String reverted = ChangesRevert.reverted(Files.readString(file, StandardCharsets.UTF_8), diff);
+          String reverted = ChangesRevert.reverted(Files.readString(file, StandardCharsets.UTF_8), diff, row.block());
           Files.writeString(file, reverted, StandardCharsets.UTF_8);
-          outcome = "Reverted " + name + ".";
+          outcome = oneHunk ? "Reverted hunk " + (row.block() + 1) + " of " + name + "." : "Reverted " + name + ".";
         }
         ApplicationManager.getApplication().invokeLater(() -> {
           status.setText(outcome);

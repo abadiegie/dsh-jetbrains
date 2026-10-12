@@ -19,6 +19,8 @@ public final class DshCompanionSettings implements PersistentStateComponent<DshC
     public String dshUrl = "";
     /** Explicit DSH home; empty reads the DSH IDE plugin's own setting, then {@code DSH_HOME}, then {@code ~/.dsh}. */
     public String dshHome = "";
+    /** Newest published turn this IDE has already mentioned, in epoch milliseconds. */
+    public long lastSeenChangesAt;
   }
 
   private State state = new State();

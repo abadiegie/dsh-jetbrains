@@ -46,11 +46,11 @@ public final class DshChanges {
    * @param total - how many files changed.
    * @param added - lines added across them.
    * @param deleted - lines deleted across them.
-   * @param at - when the publisher wrote the entry.
+   * @param at - when the publisher wrote the entry, in epoch milliseconds (0 when it said nothing).
    * @param files - the changed files.
    */
   public record Turn(String sessionId, String cwd, long seq, int turn, int total, int added, int deleted,
-                     String at, List<ChangedFile> files) {
+                     long at, List<ChangedFile> files) {
     /** @return one line describing the turn in a list. */
     public String label() {
       return "turn " + turn + " · " + files.size() + (files.size() == 1 ? " file" : " files")
@@ -103,7 +103,7 @@ public final class DshChanges {
         number(JsonParser.member(entry, "total")),
         number(JsonParser.member(entry, "added")),
         number(JsonParser.member(entry, "deleted")),
-        JsonParser.string(entry, "at"),
+        number(JsonParser.member(entry, "at")),
         files));
     }
     return turns;

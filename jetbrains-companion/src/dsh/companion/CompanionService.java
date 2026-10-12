@@ -34,6 +34,8 @@ import org.jetbrains.annotations.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowManager;
 
 /**
  * Application service that publishes this IDE's workspace to DSH: it owns the loopback
@@ -65,6 +67,8 @@ public final class CompanionService implements Disposable {
 
   /** Start the bridge and the publisher; repeated calls are no-ops. */
   public void start() {
+    // Turns published while this IDE was closed are worth mentioning before anything else starts.
+    notifyMissedTurns();
     synchronized (lock) {
       if (server != null) return;
       token = newToken();
@@ -247,6 +251,51 @@ public final class CompanionService implements Disposable {
    * @param column - one-based column, or 0.
    * @return a failure message, or {@code null} on success.
    */
+  /**
+   * Mention the turns that were published while this IDE was closed.
+   *
+   * The review document outlives the IDE, so history is never lost; what was missing was being told. The
+   * watermark lives in the plugin's settings, so one turn is mentioned once.
+   */
+  private void notifyMissedTurns() {
+    long newest = 0;
+    int missed = 0;
+    String latest = null;
+    try {
+      for (DshChanges.Turn turn : DshChanges.read(DshChanges.path())) {
+        if (turn.at() <= 0) continue;
+        newest = Math.max(newest, turn.at());
+        if (turn.at() > DshCompanionSettings.getInstance().state().lastSeenChangesAt) {
+          missed += 1;
+          if (latest == null && !turn.files().isEmpty()) latest = turn.files().get(0).display();
+        }
+      }
+    } catch (IOException unavailable) {
+      LOG.info("dsh-companion: nothing to catch up on: " + unavailable.getMessage());
+      return;
+    }
+    if (missed == 0) return;
+    DshCompanionSettings.getInstance().state().lastSeenChangesAt = newest;
+    Notification notification = new Notification("DshCompanion",
+      "DSH changed files while the IDE was closed",
+      missed + (missed == 1 ? " turn" : " turns") + " since you last looked"
+        + (latest == null ? "" : ", latest " + latest),
+      NotificationType.INFORMATION);
+    notification.addAction(new NotificationAction("Show changes") {
+      @Override
+      public void actionPerformed(@NotNull AnActionEvent event, @NotNull Notification shown) {
+        shown.expire();
+        for (Project project : ProjectManager.getInstance().getOpenProjects()) {
+          if (project.isDefault()) continue;
+          ToolWindow window = ToolWindowManager.getInstance(project)
+            .getToolWindow(DshDiffToolWindowFactory.TOOL_WINDOW_ID);
+          if (window != null) window.show();
+        }
+      }
+    });
+    Notifications.Bus.notify(notification);
+  }
+
   /**
    * Show the diff of a turn DSH just published, and offer to keep or revert it.
    *
