@@ -51,14 +51,16 @@ mv -f "$PLUGIN_DIR/lib/.dsh-companion.jar.new" "$PLUGIN_DIR/lib/dsh-companion.ja
 
 echo "build: done — restart the IDE to load $PLUGIN_DIR"
 
-# A Marketplace upload and an "Install Plugin from Disk" both take this ZIP: one top-level directory holding
-# the plugin's lib/, which is the layout the platform expects.
+# A Marketplace upload and an "Install Plugin from Disk" both take this ZIP: the archive root is the
+# plugin root and holds exactly lib/, which is the layout the validator demands.
 VERSION=$(sed -n 's/.*<version>\(.*\)<\/version>.*/\1/p' "$HERE/plugin.xml" | head -1)
 DIST="$HERE/dist/dsh-companion-$VERSION.zip"
 ZIP_ROOT="$HERE/dist/zip"
 rm -rf "$ZIP_ROOT"
-mkdir -p "$ZIP_ROOT/dsh-companion/lib"
-cp "$JAR" "$ZIP_ROOT/dsh-companion/lib/"
-(cd "$ZIP_ROOT" && jar --create --file "$DIST" dsh-companion)
+mkdir -p "$ZIP_ROOT/lib"
+cp "$JAR" "$ZIP_ROOT/lib/"
+# `--no-manifest` matters: without it the jar tool writes META-INF/MANIFEST.MF at the archive root, and a
+# Marketplace upload is rejected for a root holding more than lib/ ("must not contain multiple files").
+(cd "$ZIP_ROOT" && jar --create --no-manifest --file "$DIST" lib)
 rm -rf "$ZIP_ROOT"
 echo "build: distribution $DIST ($(du -h "$DIST" | cut -f1))"
