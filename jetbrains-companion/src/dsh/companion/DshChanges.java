@@ -53,8 +53,11 @@ public final class DshChanges {
                      long at, List<ChangedFile> files) {
     /** @return one line describing the turn in a list. */
     public String label() {
+      // The document is a list of turns across every session, so a row names its session: a reader
+      // reviewing one session's history must not have to guess which turn belongs to which.
+      String shortId = sessionId == null ? "" : sessionId.replace("session-", "").substring(0, Math.min(8, sessionId.replace("session-", "").length()));
       return "turn " + turn + " · " + files.size() + (files.size() == 1 ? " file" : " files")
-        + " · +" + added + "/-" + deleted;
+        + " · +" + added + "/-" + deleted + (shortId.isEmpty() ? "" : " · " + shortId);
     }
   }
 

@@ -31,6 +31,14 @@ Repository preparation for public release: MIT license, security model, CI, and 
   match of the notice's root against each project's base path. The Host's descriptor-set reader stays as
   forward compatibility.
 
+## jetbrains-workspace 0.1.7
+
+- The review document lists **turns**, not one entry per session. Keying by session kept only the newest turn
+  of each and dropped the rest, which a reader saw as a session whose diff panel showed a single turn. It now
+  keeps the newest forty turns across sessions, newest first, with the arrival order breaking ties inside one
+  millisecond, and every row names its session.
+- The changes panel therefore shows a session's history: each turn is a block with its own files and hunks.
+
 ## jetbrains-workspace 0.1.6
 
 - The bundle reads a **set** of companion descriptors, not one: `readLiveBridges` collects the single

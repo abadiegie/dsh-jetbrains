@@ -339,7 +339,7 @@ if (first[0].files.length !== 2 || first[0].files[1].path !== '/tmp/b.md') {
   throw new Error(`the entry must carry every changed file: ${JSON.stringify(first[0].files)}`)
 }
 
-// Another session joins, newest first; a later turn of the same session replaces its entry.
+// Another session joins, newest first; a later turn of the same session joins it rather than replacing it.
 summaries.set('session-b:7', {
   turn: 1, cwd: '/from-summary', total: 1, added: 1, deleted: 0, files: [{ path: 'x', display: 'x' }],
 })
@@ -347,18 +347,21 @@ announce({ header: { id: 'session-b', cwd: '/work/b' } }, 7, 1)
 summaries.set('session-a:43', { turn: 4, total: 1, added: 3, deleted: 1, files: [{ path: 'src/a.js', display: 'src/a.js' }] })
 announce(sessionA, 43, 4)
 const both = published().sessions
-if (both.length !== 2) throw new Error(`two sessions must stay two entries, got ${both.length}`)
+if (both.length !== 3) throw new Error(`two sessions with three turns must publish three entries, got ${both.length}`)
 if (both[0].sessionId !== 'session-a' || both[0].seq !== 43) {
-  throw new Error(`the newest turn must replace its session entry: ${JSON.stringify(both.map(entry => entry.sessionId + ':' + entry.seq))}`)
+  throw new Error(`the newest turn must come first: ${JSON.stringify(both.map(entry => entry.sessionId + ':' + entry.seq))}`)
 }
 if (both[1].sessionId !== 'session-b') throw new Error('the other session must stay published')
 if (both[1].cwd !== '/from-summary') throw new Error('the summary\'s own cwd must win over the session header')
+if (both[2].sessionId !== 'session-a' || both[2].seq !== 42) {
+  throw new Error(`an earlier turn of the same session must stay published: ${JSON.stringify(both.map(entry => entry.seq))}`)
+}
 
 // Events that are not change announcements are ignored, and no temporary file is left behind.
 changesPlugin.listeners.get('session/event')(sessionA, { type: 'turn/end', seq: 44, data: { turn: 4 } })
-if (published().sessions.length !== 2) throw new Error('a non-change event must not publish')
+if (published().sessions.length !== 3) throw new Error('a non-change event must not publish')
 if (existsSync(`${changesPath}.tmp`)) throw new Error('the write must leave no temporary file behind')
-console.log('the review document carries each turn\'s coordinates, replaces a session entry, and stays atomic')
+console.log('the review document carries every turn of a session, newest first, and stays atomic')
 
 // 8. Presenting a file: with `autoOpenDeliverables` the window's own session opens it through the
 //    companion bridge, and nothing else does.

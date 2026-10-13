@@ -24,7 +24,12 @@ const VERSION = 1
 const SOURCE = 'jetbrains-workspace'
 
 /** Sessions kept in the document, newest first. */
-const SESSION_LIMIT = 8
+/**
+ * How many turns the document keeps. It is a list of turns, not one entry per session: a reader reviewing a
+ * session wants its history, and keying by session kept only the newest turn of each and silently dropped
+ * the rest.
+ */
+const TURN_LIMIT = 40
 
 /** The session event a recorder announces one turn's changed files with. */
 const CHANGES_EVENT = 'workspace/changes'
@@ -73,6 +78,9 @@ export function publishChanges(ctx, options = {}) {
   const bridgeOptions = options.bridgeOptions ?? {}
   const autoOpenDiffs = options.autoOpenDiffs !== false
   const sessions = new Map()
+  // Arrival order, so turns recorded in the same millisecond still read newest-first instead of in map order.
+  const recency = new Map()
+  let arrival = 0
   const warned = new Set()
   // Events whose summary the recorder had not stored yet, keyed by session and sequence. The next session
   // event is the retry clock: it needs no timer helper from the composition, and a turn emits several.
@@ -84,9 +92,12 @@ export function publishChanges(ctx, options = {}) {
 
   /** Write the document when its content changed. */
   const publish = () => {
-    const entries = [...sessions.values()]
-      .sort((left, right) => right.at - left.at)
-      .slice(0, SESSION_LIMIT)
+    const entries = [...sessions.entries()]
+      .map(([key, entry]) => ({ key, entry }))
+      .sort((left, right) => (right.entry.at - left.entry.at)
+        || ((recency.get(right.key) ?? 0) - (recency.get(left.key) ?? 0)))
+      .slice(0, TURN_LIMIT)
+      .map(({ entry }) => entry)
     const signature = `${entries.map(entry => `${entry.sessionId}:${entry.seq}`).join(',')}|${JSON.stringify(lastEvent ?? null)}`
     if (signature === published) return
     published = signature
@@ -168,7 +179,9 @@ export function publishChanges(ctx, options = {}) {
       }
       return
     }
-    sessions.set(id, {
+    arrival += 1
+    recency.set(`${id}:${event.seq}`, arrival)
+    sessions.set(`${id}:${event.seq}`, {
       sessionId: id,
       // The recorder's own `cwd` is the root the listed paths are relative to, which is what a reader
       // resolves them against; the session header is the fallback.
